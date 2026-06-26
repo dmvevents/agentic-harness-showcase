@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design — agentic-harness</title>
+<meta name="description" content="Technical design for the agentic-harness benchmark portal: the Tool/Agent/Repo/Portal architecture, component specs, benchmark schema, integrations, and governance model.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="deep-dive.html">Deep dive</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="calculator.html">Calculator</a>
+    <a href="design.html" class="active">Design</a>
+  </div>
+</nav>
+
+<!-- ---- header ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Technical Design</p>
+    <h2>Benchmark Portal — Complete Technical Specification</h2>
+    <p class="lead">
+      First-pass design for review. Some components are <span class="badge ship">shipped</span> in
+      <code>agentic-harness</code> and <code>cluster_ops</code> today; others are
+      <span class="badge v2">planned v2</span>. This is the full technical blueprint.
+    </p>
+  </div>
+</section>
+
+<!-- ---- section 0: the thesis ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">0. The Thesis</p>
+    <h2>One paragraph</h2>
+    <p>
+      The product is a <strong>deterministic Tool</strong> (same input → same output, no
+      hallucination, structured in/out) <strong>wrapped by an Agent</strong> (conversational,
+      slot-filling, tool-orchestration-only) <strong>backed by a Repo</strong> (one shared
+      source of truth: real benchmark runs, the instinct corpus, the failure table). A
+      <strong>Portal</strong> lets people browse the catalog, inspect configs, generate
+      customer-safe reports, chat with the agent, and download artifacts. The public tier is
+      read-only and free of any sensitive data; a restricted tier (auth + RBAC + audit) is
+      described here but <strong>not built in this pass</strong>.
+    </p>
+    <p>
+      <code>agentic-harness</code> already implements the hard half — the deterministic Tool.
+      <code>cluster_ops</code> is a deterministic capacity-discovery engine, a deterministic
+      failure classifier, and an empirical-ladder fix dispatcher. This design shows how those
+      map onto the spec and what the Agent / Repo / Portal layers add on top.
+    </p>
+  </div>
+</section>
+
+<!-- ---- section 1: system architecture ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">1. System Architecture</p>
+    <h2>Four layers, two tiers</h2>
+
+    <div class="diagram" style="margin-top:1.5rem">
+      <div class="flow-stack">
+        <div class="flow-box">
+          <div class="ft">PUBLIC tier (this static site — no auth, no sensitive data)</div>
+          <div class="fs">index.html (landing) · calculator.html (directional sizing/cost, client-side JS) · architecture.html (design visualized)</div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box agent">
+          <div class="ft">AGENT layer — conversational orchestrator (tool-calling only)</div>
+          <div class="fs">Slot-fills inputs, routes to a Tool function, formats structured output. Never invents formulas or numbers.</div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box tool">
+          <div class="ft">DETERMINISTIC TOOL — same input → same output</div>
+          <div class="fs">capacity.discover_* (read-only AWS) · validation.classify_log_error (regex → instinct+fix) · runbook.Synthesizer (goal → plan; catches HW traps) · knowledge_base.answer_question (curated HyperPod Q&amp;A) · sizing/cost calculator (directional, public-spec) · benchmark retrieval <span class="badge v2">v2</span></div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box repo">
+          <div class="ft">REPO — single source of truth (git, PR-gated)</div>
+          <div class="fs">316 instincts + 52 detect→fix patterns + 30 Q&amp;A entries + <span class="badge v2">v2</span> benchmark entries (config + results + metadata + provenance + validation)</div>
+        </div>
+        <div class="flow-arrow" style="margin-top:0.5rem">&darr;</div>
+        <div class="flow-box" style="opacity:0.6">
+          <div class="ft">RESTRICTED tier — NOT built in this pass (described only)</div>
+          <div class="fs">Auth (SSO + RBAC + audit log) · S3 report storage + signed download · Opportunity tie-in (not implemented)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Trust boundary.</strong> The PUBLIC tier never sees a customer name, a negotiated
+      price, an account id, or a real benchmark number. The deterministic Tool's <em>mutating</em>
+      verbs (capacity purchase, fix execution) live behind a spend firewall and a human gate and
+      are <strong>not exposed over the public MCP surface at all</strong> — that is a structural
+      invariant enforced by a test, not a convention.
+    </div>
+  </div>
+</section>
+
+<!-- ---- section 2: deterministic tool ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">2. Component Spec</p>
+    <h2>The deterministic Tool service</h2>
+    <p>
+      The Tool is a set of <strong>pure, structured functions</strong>. Each has a typed input,
+      a typed output, and is referentially transparent within an AWS account snapshot (read-only
+      calls reflect live AWS state but the <em>transform</em> is deterministic; the sizing
+      calculator is fully pure).
+    </p>
+
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Function</th><th>Input → Output</th><th>Mutating?</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>discover_capacity</code></td>
+          <td>instance_type, count, duration, region → list of CapacityOffering</td>
+          <td>No</td>
+          <td><span class="badge ship">shipped</span></td>
+        </tr>
+        <tr>
+          <td><code>classify_failure</code></td>
+          <td>log text → list of ErrorPattern (instinct_id, severity, fix, description)</td>
+          <td>No</td>
+          <td><span class="badge ship">shipped</span></td>
+        </tr>
+        <tr>
+          <td><code>plan_cluster</code></td>
+          <td>goal sentence → ordered Module[] + warnings (catches B200 8-vs-16 EFA-NIC trap at plan time)</td>
+          <td>No (dry-run)</td>
+          <td><span class="badge ship">shipped</span></td>
+        </tr>
+        <tr>
+          <td><code>ask_hyperpod</code></td>
+          <td>question, top_k → KB entries with do/do-not/depends + source + confidence</td>
+          <td>No</td>
+          <td><span class="badge ship">shipped</span></td>
+        </tr>
+        <tr>
+          <td><code>taxonomy</code></td>
+          <td>— → live corpus inventory by kind/layer/substrate/workload/instance-type</td>
+          <td>No</td>
+          <td><span class="badge ship">shipped</span></td>
+        </tr>
+        <tr>
+          <td><code>size_cluster</code></td>
+          <td>model_params_B, workload, gpu_type, instance_count, precision → total GPUs, VRAM, memory-fit verdict, TP/PP/DP suggestion, directional cost</td>
+          <td>No (pure)</td>
+          <td><span class="badge ship">shipped</span> on public site (calculator.js); server-side typed version <span class="badge v2">v2</span></td>
+        </tr>
+        <tr>
+          <td><code>query_benchmark</code></td>
+          <td>config selector (model, gpus, parallelism, framework) → matching benchmark entries from Repo with provenance + validation status</td>
+          <td>No</td>
+          <td><span class="badge v2">planned v2</span></td>
+        </tr>
+        <tr>
+          <td><code>purchase_capacity</code></td>
+          <td>offering_id, confirm_token → PurchaseResult</td>
+          <td><strong>YES</strong></td>
+          <td><span class="badge warn2">human-gated, never on public MCP</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>Determinism contract.</strong> For the pure functions (<code>size_cluster</code>,
+      <code>classify_failure</code>, <code>plan_cluster</code>), identical input yields
+      byte-identical output. This is the anti-hallucination property: the Agent can phrase the
+      answer however it likes, but the <em>numbers and the classification</em> come from the Tool,
+      not from a language model. The failure classifier is a compiled regex table (52 patterns),
+      not a prompt.
+    </div>
+  </div>
+</section>
+
+<!-- ---- section 3: benchmark repo ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">3. Component Spec</p>
+    <h2>The Benchmark Repo (source of truth)</h2>
+    <p>
+      The Repo is a git repository. Two parts already exist; the benchmark-entry part is the
+      <span class="badge v2">v2 addition</span>.
+    </p>
+
+    <h3>3a. Shipped today <span class="badge ship">shipped</span></h3>
+    <ul>
+      <li><strong>Instinct corpus</strong> — 316 atomic instincts, each with <code>kind</code>
+        {pattern, gotcha, style, learning, correction} and an <code>applies_to</code> qualifier
+        {substrate, layer, workload, project_type, instance_type}. Stored in
+        <code>cluster_ops/instincts_seed/</code>. Contribution is by PR following the
+        atomic-instinct schema.</li>
+      <li><strong>Failure table</strong> — 52 compiled detect→fix patterns
+        (<code>cluster_ops/validation/error_patterns.py</code>). New patterns are <em>mined</em>
+        from session logs, then promoted by PR.</li>
+      <li><strong>HyperPod KB</strong> — 30 curated Q&amp;A entries with positive / negative /
+        neutral tiers and a source + confidence on every entry.</li>
+    </ul>
+
+    <h3>3b. Benchmark entry schema <span class="badge v2">planned v2</span></h3>
+    <p>
+      Each benchmark run is one JSON document under <code>benchmarks/&lt;id&gt;.json</code>,
+      PR-contributed, validated by a CI gate before merge:
+    </p>
+
+    <pre style="margin-top:1rem"><span class="c">// benchmarks/bench-2026-...-&lt;short-hash&gt;.json</span>
+{
+  <span class="k">"id"</span>: <span class="s">"bench-2026-...-&lt;short-hash&gt;"</span>,
+  <span class="k">"config"</span>: {
+    <span class="s">"model"</span>: <span class="s">"llama-3-8b"</span>,              <span class="c">// public model name only</span>
+    <span class="s">"workload"</span>: <span class="s">"inference"</span>,           <span class="c">// train | inference | finetune</span>
+    <span class="s">"gpu_type"</span>: <span class="s">"H100"</span>,               <span class="c">// public part name</span>
+    <span class="s">"instance_type"</span>: <span class="s">"p5.48xlarge"</span>,   <span class="c">// public AWS instance type</span>
+    <span class="s">"instance_count"</span>: 2,
+    <span class="s">"gpus_total"</span>: 16,
+    <span class="s">"parallelism"</span>: { <span class="s">"tp"</span>: 8, <span class="s">"pp"</span>: 1, <span class="s">"dp"</span>: 2 },
+    <span class="s">"precision"</span>: <span class="s">"bf16"</span>,
+    <span class="s">"framework"</span>: <span class="s">"vllm"</span>,              <span class="c">// vllm | trtllm | nemo | fsdp | nccl-tests</span>
+    <span class="s">"framework_version"</span>: <span class="s">"0.x.y"</span>
+  },
+  <span class="k">"results"</span>: {                          <span class="c">// the REAL measured numbers</span>
+    <span class="s">"metric"</span>: <span class="s">"tokens_per_sec"</span>,         <span class="c">// or busbw_gbps, ms_p50, etc.</span>
+    <span class="s">"value"</span>: 0.0,
+    <span class="s">"unit"</span>: <span class="s">"tok/s"</span>,
+    <span class="s">"secondary"</span>: { <span class="s">"ttft_ms_p50"</span>: 0.0, <span class="s">"throughput_req_s"</span>: 0.0 }
+  },
+  <span class="k">"metadata"</span>: {
+    <span class="s">"run_date"</span>: <span class="s">"2026-..-..-..T..:..:.."</span>,
+    <span class="s">"region"</span>: <span class="s">"us-east-2"</span>,
+    <span class="s">"node_count"</span>: 2,
+    <span class="s">"harness"</span>: <span class="s">"aiperf | nccl-tests | custom"</span>
+  },
+  <span class="k">"provenance"</span>: {
+    <span class="s">"commit"</span>: <span class="s">"&lt;sha&gt;"</span>,                  <span class="c">// exact code that produced this</span>
+    <span class="s">"image_digest"</span>: <span class="s">"sha256:..."</span>,       <span class="c">// exact container</span>
+    <span class="s">"command"</span>: <span class="s">"redacted-safe command line"</span>,
+    <span class="s">"audit_ref"</span>: <span class="s">".claude-sessions/&lt;run_id&gt;/"</span>  <span class="c">// links to audit trail</span>
+  },
+  <span class="k">"validation"</span>: {
+    <span class="s">"status"</span>: <span class="s">"validated | provisional | rejected"</span>,
+    <span class="s">"validator"</span>: <span class="s">"&lt;reviewer or CI gate id&gt;"</span>,
+    <span class="s">"gates_passed"</span>: [<span class="s">"fabric-active"</span>, <span class="s">"no-tcp-fallback"</span>, <span class="s">"reproduced-2x"</span>],
+    <span class="s">"notes"</span>: <span class="s">"..."</span>
+  }
+}</pre>
+
+    <div class="callout">
+      <strong>Why provenance + validation are first-class fields:</strong> a benchmark number
+      with no commit, no image digest, and no validation status is a rumor. The Repo's value
+      proposition is that every number is reproducible and graded. This mirrors how the instinct
+      corpus already enforces 100% retrievable / actionable / attributed.
+    </div>
+
+    <div class="callout warn">
+      <strong>CI validation gate <span class="badge v2">v2</span>:</strong> a PR adding a
+      benchmark entry fails unless (a) the schema validates, (b) <code>provenance.commit</code>
+      and <code>image_digest</code> are present and non-placeholder, (c)
+      <code>validation.status</code> is set by someone other than the contributor (separation of
+      authoring and approval — the same two-pass discipline the harness uses), and (d) no
+      sensitive-data linter hit (customer names, account ids, internal hostnames).
+    </div>
+  </div>
+</section>
+
+<!-- ---- section 4: agent layer ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">4. Component Spec</p>
+    <h2>The Agent layer (tool-orchestration-only)</h2>
+    <p>
+      The Agent is a conversational front end (Amazon Nova / Bedrock AgentCore / any agent
+      framework). Its <strong>contract</strong> is the load-bearing part:
+    </p>
+
+    <ol style="margin-left:1.5rem; color:var(--text-dim)">
+      <li style="margin-bottom:0.6rem"><strong style="color:var(--text)">It never invents formulas or benchmark numbers.</strong> Every number it emits must be the return value of a Tool function. If no Tool can answer, it says so — it does not estimate from its own weights.</li>
+      <li style="margin-bottom:0.6rem"><strong style="color:var(--text)">It is slot-filling.</strong> Missing inputs → ask a follow-up question ("which GPU type?", "train or inference?") rather than guessing a default silently.</li>
+      <li style="margin-bottom:0.6rem"><strong style="color:var(--text)">It routes, formats, and cites.</strong> It picks the right Tool function, passes structured arguments, and renders the structured result into prose or a report — always citing the source (instinct id, KB entry id, benchmark id, or "directional public-spec estimate").</li>
+      <li><strong style="color:var(--text)">It cannot mutate.</strong> The Agent's tool surface is the <strong>read-only MCP server</strong> (<code>cluster-ops-mcp</code>). There is no <code>purchase</code> and no <code>execute</code> tool on that surface — enforced by a build-failing test. Spend and cluster mutation stay behind the in-process human gate.</li>
+    </ol>
+
+    <div class="callout">
+      This is the same "advise vs execute" boundary the product already ships: the MCP/agent
+      surface advises (plan, classify, discover, answer); the in-process, human-gated path
+      executes.
+    </div>
+  </div>
+</section>
+
+<!-- ---- section 5: reporting pipeline ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">5. Component Spec</p>
+    <h2>The reporting pipeline</h2>
+
+    <div class="diagram" style="margin-top:1rem">
+<pre>
+Tool output (structured)
+  → Agent assembles a report object {summary, config, results, provenance, caveats}
+  → renderer produces TWO artifacts:
+      (a) executive summary  — customer-safe prose, directional/validated labels
+      (b) technical artifact — exact config + commit + image digest + command
+  → <span class="badge v2">v2</span> store to S3, return a signed download link; log to audit
+</pre>
+    </div>
+
+    <ul style="margin-top:1rem; color:var(--text-dim)">
+      <li><strong style="color:var(--text)">Executive summary</strong> is customer-safe: no internal pricing, no account ids; every quantitative claim is labeled either <strong>"validated benchmark"</strong> (backed by a Repo entry) or <strong>"directional estimate"</strong> (from the public-spec calculator).</li>
+      <li><strong style="color:var(--text)">Technical artifact</strong> is the reproducibility backing: the exact commit, image digest, and command so a third party can re-run it.</li>
+      <li><strong style="color:var(--text)">MVP</strong> renders both as Markdown/HTML inline. <span class="badge v2">v2</span> persists to S3 with a signed link and writes an audit record.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ---- section 6: governance ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">6. Governance &amp; Contribution</p>
+    <h2>How contributions work</h2>
+
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Concern</th><th>Mechanism</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Add an instinct</td>
+          <td>PR editing <code>instincts_seed/known_gotchas.json</code> against the atomic schema with <code>applies_to</code></td>
+          <td><span class="badge ship">shipped</span></td>
+        </tr>
+        <tr>
+          <td>Add a failure pattern</td>
+          <td>mined from logs → PR into <code>error_patterns.py</code></td>
+          <td><span class="badge ship">shipped</span></td>
+        </tr>
+        <tr>
+          <td>Add a benchmark entry</td>
+          <td>PR adding <code>benchmarks/&lt;id&gt;.json</code> → CI schema + provenance + sensitive-data gates → human validator sets <code>validation.status</code></td>
+          <td><span class="badge v2">planned v2</span></td>
+        </tr>
+        <tr>
+          <td>Coverage ratchet</td>
+          <td>a floor that never lowers (retrievable / actionable / attributed all 100%); enforced by a pre-commit hook + test</td>
+          <td><span class="badge ship">shipped</span> for instincts</td>
+        </tr>
+        <tr>
+          <td>Separation of authoring &amp; approval</td>
+          <td>contributor cannot self-validate their own benchmark entry</td>
+          <td><span class="badge v2">planned v2</span></td>
+        </tr>
+        <tr>
+          <td>Sensitive-data firewall</td>
+          <td>linter rejects customer names / account ids / internal hostnames in any public-facing entry</td>
+          <td><span class="badge v2">planned v2</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---- section 7: how it's already implemented ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">7. How agentic-harness ALREADY implements the deterministic Tool</p>
+    <h2>The spec's hard half is not aspirational — it ships</h2>
+
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Spec requirement</th><th>Already implemented by</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>"Same answer every time; structured in/out"</td>
+          <td><code>classify_log_error()</code> is a compiled regex table → list of dataclasses. Pure.</td>
+        </tr>
+        <tr>
+          <td>"Prevents hallucination"</td>
+          <td>The failure classification and the module plan come from data + code, not a prompt. The Agent can't override the instinct id.</td>
+        </tr>
+        <tr>
+          <td>"Benchmark retrieval engine" (partial)</td>
+          <td><code>ask_hyperpod</code> retrieves curated answers with confidence + source today; <code>query_benchmark</code> over real runs is the v2 generalization.</td>
+        </tr>
+        <tr>
+          <td>"Capacity-aware"</td>
+          <td><code>discover_capacity_blocks</code> / <code>discover_ftp_offerings</code> — read-only, live AWS, structured CapacityOfferings.</td>
+        </tr>
+        <tr>
+          <td>"Failure-aware"</td>
+          <td>the 52-pattern table maps a log signature → instinct → severity → codified fix.</td>
+        </tr>
+        <tr>
+          <td>"Plan-time correctness"</td>
+          <td><code>Synthesizer</code> catches the B200 8-vs-16 EFA-NIC trap <strong>before</strong> any apply.</td>
+        </tr>
+        <tr>
+          <td>"Spend firewall / non-mutating agent surface"</td>
+          <td>3-factor purchase gate (<code>CLUSTER_OPS_PROD=1</code> + <code>--confirm==offering_id</code> + out-of-band <code>CLUSTER_OPS_PURCHASE_TOKEN</code>); MCP server is structurally non-mutating.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      The new work for the portal is the <strong>Repo's benchmark-entry half</strong> and the
+      <strong>Portal UI</strong> — the deterministic engine, the failure-awareness, the
+      capacity-awareness, and the safety boundary already exist.
+    </div>
+  </div>
+</section>
+
+<!-- ---- section 8: integrations ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">8. Integrations</p>
+    <h2>Into the AWS agent ecosystem</h2>
+
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Integration</th><th>Direction</th><th>What it does</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>MCP server</strong> (<code>cluster-ops-mcp</code>)</td>
+          <td>inbound</td>
+          <td>Q Developer CLI, Bedrock AgentCore Gateway, Quick Suite Desktop register our read-only tools (<code>ask_hyperpod</code>, <code>classify_failure</code>, <code>plan_cluster</code>, <code>discover_capacity</code>, <code>list_failure_signatures</code>, <code>taxonomy</code>)</td>
+          <td><span class="badge ship">shipped</span> (stdio); remote HTTPS transport is the open follow-up</td>
+        </tr>
+        <tr>
+          <td><strong>MCP client</strong></td>
+          <td>outbound</td>
+          <td><code>cluster_ops.mcp.client</code> calls awslabs servers: <code>aws-api</code>, <code>eks</code>, <code>cloudwatch</code>, <code>pricing</code>, <code>aws-knowledge</code></td>
+          <td><span class="badge ship">shipped</span></td>
+        </tr>
+        <tr>
+          <td><strong>Amazon Q Developer</strong></td>
+          <td>inbound</td>
+          <td>wrap the CLI headless (<code>q chat --no-interactive --trust-all-tools</code>) with our <code>mcp.json</code></td>
+          <td><span class="badge ship">shipped</span> (CLI); no public SDK for the coding agent</td>
+        </tr>
+        <tr>
+          <td><strong>Bedrock AgentCore</strong></td>
+          <td>inbound</td>
+          <td>Gateway <code>CreateGatewayTarget</code> re-hosts our MCP tools; <code>bedrock-agentcore</code> boto3 client invokes runtime</td>
+          <td><span class="badge ship">shipped</span> path; needs remote HTTP transport for Gateway</td>
+        </tr>
+        <tr>
+          <td><strong>Amazon Quick Suite</strong></td>
+          <td>inbound</td>
+          <td>Desktop app registers our stdio server; cloud Quick Agent needs remote HTTPS + OAuth</td>
+          <td><span class="badge warn2">partial</span> — desktop yes, cloud needs the transport</td>
+        </tr>
+        <tr>
+          <td><strong>Slack</strong></td>
+          <td>both</td>
+          <td>live bridge for status relay (hour-4 + hour-8 consolidated updates); command router</td>
+          <td><span class="badge ship">shipped</span> (bridge), selective channel mining</td>
+        </tr>
+        <tr>
+          <td><strong>S3 report storage</strong></td>
+          <td>outbound</td>
+          <td>persist executive + technical report artifacts, signed download</td>
+          <td><span class="badge v2">planned v2</span></td>
+        </tr>
+        <tr>
+          <td><strong>Opportunity tie-in</strong></td>
+          <td>outbound</td>
+          <td>attach a generated report to an opportunity</td>
+          <td><span class="badge v2">planned v2</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---- section 9: MVP vs v2 ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">9. MVP vs v2 Scope Split</p>
+    <h2>What ships now vs later</h2>
+
+    <div class="grid cols-2" style="margin-top:1.25rem">
+      <div class="card">
+        <span class="tag">MVP (this pass + a thin server)</span>
+        <h3>Shipped or imminently shipping</h3>
+        <ul style="font-size:0.93rem; color:var(--text-dim)">
+          <li>Public static site: landing, directional calculator, architecture page.</li>
+          <li>Deterministic Tool functions: discover / classify / plan / ask / taxonomy / size — all shipped.</li>
+          <li>Read-only MCP server for agent integration — shipped.</li>
+          <li>Reports rendered inline (Markdown/HTML).</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <span class="tag">v2</span>
+        <h3>Planned second pass</h3>
+        <ul style="font-size:0.93rem; color:var(--text-dim)">
+          <li>Benchmark-entry Repo (<code>benchmarks/*.json</code>) with the schema in §3b + CI validation gate.</li>
+          <li><code>query_benchmark</code> Tool function + benchmark catalog browse in the portal.</li>
+          <li>Restricted portal tier: auth, RBAC, audit log.</li>
+          <li>S3 report persistence with signed download.</li>
+          <li>Remote Streamable-HTTP MCP transport (unlocks AgentCore Gateway + cloud Quick Suite).</li>
+          <li>Opportunity tie-in.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- section 10: vs reference ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">10. How We're Better</p>
+    <h2>Beyond a single-purpose calculator</h2>
+    <p>
+      The reference is a single <code>index.html</code> with formulas in client-side JS, no
+      backend, no failure-awareness, no catalog. We keep its best property (deterministic,
+      client-side, no backend to misconfigure) and go broader on every axis:
+    </p>
+
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Axis</th><th>Reference calculator</th><th>This portal</th></tr></thead>
+      <tbody>
+        <tr><td>Scope</td><td>one calculation (sizing)</td><td>sizing + capacity discovery + failure classification + plan synthesis + curated Q&amp;A</td></tr>
+        <tr><td>Failure-awareness</td><td>none</td><td>52 compiled detect→fix patterns; paste a log, get the codified fix</td></tr>
+        <tr><td>Capacity-awareness</td><td>none</td><td>live read-only Capacity Block / FTP offering discovery</td></tr>
+        <tr><td>Reproducibility</td><td>a number on a page</td><td>every real benchmark carries commit + image digest + validation status</td></tr>
+        <tr><td>Hallucination control</td><td>implicit (it's just JS)</td><td>explicit contract: Agent never emits a number a Tool didn't return</td></tr>
+        <tr><td>Integration</td><td>standalone page</td><td>MCP server (inbound) + MCP client (outbound) into the AWS agent ecosystem</td></tr>
+        <tr><td>Layers</td><td>one layer (sizing math)</td><td>L0→L9 (primitive → knowledge); mass at L4.5 build/CI and L6 OS/infra where bring-ups actually break</td></tr>
+        <tr><td>Honesty</td><td>unlabeled estimates</td><td>every number labeled "directional" or "validated benchmark"</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      The public calculator on this site is deliberately <strong>directional only</strong> — it
+      exists to demonstrate the deterministic-tool pattern with public-spec numbers, not to
+      replace a real benchmark. The real numbers live in the PR-gated Repo, behind validation.
+    </div>
+  </div>
+</section>
+
+<!-- ---- section 11: open questions ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">11. Open Questions</p>
+    <h2>For the human</h2>
+    <ol style="margin-left:1.5rem; color:var(--text-dim)">
+      <li style="margin-bottom:0.6rem"><strong style="color:var(--text)">Agent framework:</strong> Amazon Nova via Bedrock, AgentCore-hosted, or a thin agent that calls the existing MCP server? The Tool / Repo design is framework-agnostic; the choice affects only the Agent layer in §4.</li>
+      <li style="margin-bottom:0.6rem"><strong style="color:var(--text)">Public hosting:</strong> GitHub Pages vs S3 static hosting vs CloudFront. The static site is portable to any of them.</li>
+      <li style="margin-bottom:0.6rem"><strong style="color:var(--text)">Benchmark seeding:</strong> which real, customer-safe runs seed the v2 Repo first? (NCCL bandwidth on p5, an open-model inference throughput on p5en?) Need confirmation that the chosen runs carry no sensitive data.</li>
+      <li><strong style="color:var(--text)">Calculator formula sign-off:</strong> the directional formulas in <code>assets/calculator.js</code> are public-spec heuristics. Do you want a domain reviewer to sign off on the parallelism heuristic before this goes public, even labeled "directional"?</li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; complete technical design specification.</div>
+    <div class="note">
+      Public showcase, no sensitive data. This design covers the full system: Tool, Agent, Repo,
+      Portal, integrations, governance, and MVP vs v2 scope. The deterministic Tool and Repo parts
+      are already shipped; the Agent wrapper and Portal UI are the new work.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
