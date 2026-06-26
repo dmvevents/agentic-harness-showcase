@@ -114,7 +114,10 @@
         <tr><td>Empirical-ladder remediation</td><td>apply &rarr; observe &rarr; classify &rarr; fix &rarr; retry, with audit</td><td><strong>yes</strong></td><td class="cap-cell"><span class="badge gated">gated</span></td></tr>
         <tr><td>Live multi-node GPU bring-up</td><td>HyperPod EKS + p5/p5en nodegroup, NCCL validation</td><td><strong>yes</strong></td><td class="cap-cell"><span class="badge gated">gated on capacity</span></td></tr>
         <tr><td>Capacity purchase</td><td>buy an offering &mdash; non-refundable</td><td><strong>yes</strong></td><td class="cap-cell"><span class="badge warn2">human-gated, in-process only</span></td></tr>
-        <tr><td>Benchmark retrieval</td><td>config selector &rarr; real validated runs from the repo</td><td>no</td><td class="cap-cell"><span class="badge v2">planned v2</span></td></tr>
+        <tr><td>Benchmark retrieval (<code>query_benchmark</code>)</td><td>selector &rarr; matching artifacts from the source-of-truth repo (repo seeded with real runs is the next step)</td><td>no</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Report generation (<code>generate_report</code>)</td><td>structured report + number-provenance guard (agent can't fabricate a figure)</td><td>no</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Container CVE scan + SBOM</td><td>trivy scan + remediation report + NGC-base gate</td><td>no</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>SLA/KPI benchmark gate</td><td>customer SLA &rarr; benchmark + accept/reject verdict</td><td>no</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
         <tr><td>Report &rarr; S3 + signed download</td><td>persist exec + technical artifacts</td><td>no</td><td class="cap-cell"><span class="badge v2">planned v2</span></td></tr>
       </tbody>
     </table>
@@ -205,6 +208,62 @@
       <code>ask_hyperpod</code>, <code>classify_failure</code>, <code>plan_cluster</code>,
       <code>discover_capacity</code>, <code>list_failure_signatures</code>,
       <code>taxonomy</code>. <a href="architecture.html">See the integration diagram &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- ---- skills library ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The skills library</p>
+    <h2>Reusable skills the agent can invoke</h2>
+    <p class="lead" style="margin-bottom:1.5rem">
+      Beyond the three lanes, the agent carries a library of focused, reusable
+      skills &mdash; each a runbook the agent loads on demand for a specific job.
+      These are shipped today.
+    </p>
+    <table>
+      <thead><tr><th>Skill</th><th>What it does</th><th class="cap-cell">Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>gpu-capacity-discovery</code></td><td>"can we get N GPUs by DATE?" &mdash; live capacity discovery, CB-vs-FTP-vs-long-term routing, request-shaping</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td><code>container-cve-scanning</code></td><td>trivy CVE scan + SBOM + before/after remediation report, tied to the NGC-from-scratch base gate &amp; ECR discipline</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td><code>customer-sla-kpi-benchmark</code></td><td>turn a customer SLA/KPI (latency p99, tok/s, cost/token) into a runnable benchmark + a pass/fail acceptance gate</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td><code>nccl-public-cluster-validator</code></td><td>one <code>kubectl apply</code> proves multi-node EFA RDMA on a fresh cluster &mdash; public, unprivileged image</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td><code>slack-deep-search</code></td><td>mine internal Slack history for prior art, customer problems, and tribal knowledge</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>Skills compose with the tools.</strong> A capacity question routes
+      through <code>gpu-capacity-discovery</code> to the deterministic
+      <code>discover_capacity</code> tool; an SLA question routes through
+      <code>customer-sla-kpi-benchmark</code> to the benchmark repo and the sizing
+      calculator. The skill is the playbook; the tool is the reproducible engine.
+    </div>
+  </div>
+</section>
+
+<!-- ---- benchmark portal ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Benchmark intelligence</p>
+    <h2>A source-of-truth benchmark repo + deterministic report tools</h2>
+    <div class="grid cols-2" style="margin-top:1.25rem">
+      <div class="card">
+        <span class="tag">source of truth</span>
+        <h3>PR-gated benchmark repo</h3>
+        <p>Schema'd artifacts (config + results + provenance + validation status),
+          a publication state machine (draft &rarr; validated &rarr; published), and a
+          CI gate that rejects unreviewed or sensitive data. Every metric is tagged
+          <span class="badge ship">measured</span> or <span class="badge v2">estimated</span>.</p>
+      </div>
+      <div class="card">
+        <span class="tag">deterministic tools</span>
+        <h3>query_benchmark &middot; generate_report</h3>
+        <p>Read-only tools the agent calls to find artifacts and assemble a
+          customer-safe report. A <strong>number-provenance guard</strong> raises if
+          any number in the report can't be traced to a tool result &mdash; the agent
+          structurally cannot fabricate a benchmark figure. <a href="benchmarks.html">See the benchmark portal &rarr;</a></p>
+      </div>
     </div>
   </div>
 </section>
