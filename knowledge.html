@@ -181,6 +181,32 @@
   </div>
 </section>
 
+<!-- ---- categorized + searchable ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Categorized on four axes</p>
+    <h2>A navigable map, not a flat pile</h2>
+    <p class="lead">Beyond the 316 canonical instincts, a review lane holds
+      <strong>~1,950 mined candidates</strong> &mdash; every one categorized on four
+      axes so the agent recalls by exactly what a learning <em>is</em>, not a single
+      crude label.</p>
+    <div class="grid cols-4" style="margin-top:1.5rem">
+      <div class="card"><span class="tag">layer</span><p>the 12-layer stack (L0 kernel &rarr; L9 knowledge)</p></div>
+      <div class="card"><span class="tag">substrate</span><p>efa_srd · nvlink · ib_rc · roce_v2 · tcp · pcie · single_host (or universal)</p></div>
+      <div class="card"><span class="tag">framework</span><p>fsdp · megatron · nemo · vllm · sglang · trtllm · deepep · dynamo · …</p></div>
+      <div class="card"><span class="tag">subject</span><p>networking · orchestration · inference · training · build · driver · capacity · storage</p></div>
+    </div>
+    <div class="callout">
+      <strong>Fast recall + self-improving targeting.</strong> An inverted index lets
+      the agent search any axis combination instantly
+      (<code>framework=fsdp · subject=training</code>). A deterministic <strong>UCB
+      bandit</strong> then treats each category as an arm &mdash; reward is fresh-yield
+      per mine &mdash; and picks what to mine next: exploit high-yield seams, explore
+      thin cells. The map shows where knowledge is thin; the bandit goes there.
+    </div>
+  </div>
+</section>
+
 <!-- ---- how it grows ---- -->
 <section>
   <div class="wrap">

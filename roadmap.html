@@ -44,17 +44,17 @@
     <p class="eyebrow">The baseline</p>
     <h2>Where we are today (v0.2.4)</h2>
     <div class="grid cols-4" style="margin-top:1.5rem">
-      <div class="card stat"><div class="num">946</div><div class="label">tests passing</div></div>
+      <div class="card stat"><div class="num">982</div><div class="label">tests passing</div></div>
       <div class="card stat"><div class="num">9<span class="unit">/12</span></div><div class="label">optimization layers implemented</div></div>
       <div class="card stat"><div class="num">316</div><div class="label">canonical instincts (100% coverage)</div></div>
-      <div class="card stat"><div class="num">3</div><div class="label">lanes shipped: ask · capacity · orchestrate</div></div>
+      <div class="card stat"><div class="num">~1.9k</div><div class="label">categorized candidates in the review lane</div></div>
     </div>
     <div class="callout warn">
       <strong>What "not yet GA" honestly means.</strong> The live multi-node
       bring-up (<code>--mode prod</code>) has never run end-to-end (capacity-gated);
-      the benchmark repo holds 0 real measured runs yet; and 10,000+ mined learnings
-      are still in the review lane, not promoted to canonical. GA closes exactly
-      these gaps &mdash; with proof, not claims.
+      the benchmark repo holds 0 real measured runs yet; and ~1,900 mined,
+      categorized learnings sit in the review lane awaiting human-gated promotion.
+      The capacity assistant (G-KR4) shipped. GA closes the rest &mdash; with proof, not claims.
     </div>
   </div>
 </section>
@@ -88,7 +88,7 @@
         <tr><td><code>v0.2.4</code></td><td>Foundation <span class="badge ship">here now</span></td><td>lanes, portal skeleton, site, mining, safety gates</td><td class="cap-cell">&mdash;</td></tr>
         <tr><td><code>v0.3.0</code></td><td>Realized knowledge</td><td>promotion pipeline + scrub canonical + seed real benchmarks</td><td class="cap-cell">no</td></tr>
         <tr><td><code>v0.4.0</code></td><td>Live proof</td><td>one real <code>--mode prod</code> bring-up, reproduced</td><td class="cap-cell"><span class="badge gated">yes</span></td></tr>
-        <tr><td><code>v0.5.0</code></td><td>Capacity assistant</td><td>flexibility analysis + request-shaping (FTP/ODCR/CB)</td><td class="cap-cell">no</td></tr>
+        <tr><td><code>v0.5.0</code></td><td>Capacity assistant <span class="badge ship">core shipped</span></td><td>flexibility analysis + request-shaping (FTP/ODCR/CB) — <code>analyze_flexibility</code> live</td><td class="cap-cell">no</td></tr>
         <tr><td><code>v1.0.0</code></td><td>GA</td><td>operator runbook + hardening + the reproduced proof</td><td class="cap-cell"><span class="badge gated">yes</span></td></tr>
       </tbody>
     </table>
@@ -108,7 +108,7 @@
         <tr><td><strong>G-KR1</strong> Live proof</td><td>a real ≥2-node HyperPod EKS bring-up + EFA validation + teardown, twice</td><td>complete audit dir; NCCL within noise floor; counters increment; reproduced</td></tr>
         <tr><td><strong>G-KR2</strong> Realized knowledge</td><td>the mining loop is closed; canonical grows under the ratchet; contaminated entries scrubbed</td><td>a human-approved batch promoted; ratchet 100/100/100; canonical scan clean</td></tr>
         <tr><td><strong>G-KR3</strong> Real benchmarks</td><td>repo seeded with ≥3 validated, customer-safe measured runs</td><td>artifacts reach <code>published</code>; a provenance-backed report renders</td></tr>
-        <tr><td><strong>G-KR4</strong> Capacity assistant</td><td>rigidity scoring + CB/ODCR/FTP alternatives + request-shaping</td><td>a rigid request yields ≥2 scored alternatives + tradeoffs</td></tr>
+        <tr><td><strong>G-KR4</strong> Capacity assistant <span class="badge ship">shipped</span></td><td>rigidity scoring + CB/ODCR/FTP alternatives + request-shaping</td><td>✓ <code>analyze_flexibility</code> scores 0–100, routes by term, offers HW-ladder alternatives</td></tr>
         <tr><td><strong>G-KR5</strong> Hardened &amp; safe</td><td>zero open Sev-1; a fresh operator completes a run from the manual alone</td><td>all safety gates green; witnessed operator run</td></tr>
       </tbody>
     </table>
