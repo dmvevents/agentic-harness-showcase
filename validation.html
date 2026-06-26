@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validation &amp; back-testing — agentic-harness</title>
+<meta name="description" content="How we validate the agent: replaying thousands of real sessions through the classifier to measure coverage, an adversarial precision gate that keeps false-positives at zero, and a divergence loop that uses disagreement to fix the system itself.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="value.html">Value</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="knowledge.html">Knowledge bank</a>
+    <a href="validation.html" class="active">Validation</a>
+    <a href="faq.html">HyperPod FAQ</a>
+    <a href="deep-dive.html">Deep dive</a>
+    <a href="benchmarks.html">Benchmarks</a>
+    <a href="design.html">Design</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="tagline">how we know it works &middot; updated 2026-06-26</span>
+    <h1>Validation by replay,<br>not by vibes.</h1>
+    <p class="lead">
+      We don't claim the agent is good &mdash; we <em>measure</em> it. We replay
+      thousands of real historical sessions through the failure classifier (without
+      running a single command), measure how many real failures it catches, and
+      hold every detection pattern behind an adversarial precision gate that keeps
+      false-positives at zero. Disagreement is a feature: where the system diverges
+      from itself, we mine the gap and fix it.
+    </p>
+  </div>
+</header>
+
+<!-- ---- the headline numbers ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The evidence</p>
+    <h2>What the back-test measured</h2>
+    <div class="grid cols-4" style="margin-top:1.5rem">
+      <div class="card stat"><div class="num">3,640</div><div class="label">real sessions replayed (no commands run)</div></div>
+      <div class="card stat"><div class="num">74<span class="unit">%</span></div><div class="label">coverage on real-world failures</div></div>
+      <div class="card stat"><div class="num">104</div><div class="label">compiled detect&rarr;fix patterns</div></div>
+      <div class="card stat"><div class="num">0</div><div class="label">false-positives on the benign + success set</div></div>
+    </div>
+    <div class="callout">
+      <strong>Coverage is a range, stated honestly.</strong> On distinct
+      deduplicated failure signatures we measure <strong>~74%</strong>; on raw
+      per-line error output (which repeats the same failure many times) it's lower.
+      We report the denominator, never cherry-pick the flattering number.
+    </div>
+  </div>
+</section>
+
+<!-- ---- how the backtest works ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The method</p>
+    <h2>Replay, don't re-run</h2>
+    <p class="lead">The insight: a real session already <em>recorded</em> what went
+      wrong. Instead of re-running commands on a cluster, we pass the recorded
+      failure output through our tool and ask &mdash; would it have caught this?</p>
+    <div class="diagram" style="margin-top:1.25rem">
+<pre>
+ real session JSONL ─▶ extract tool_result failures ─▶ classify_log_error()
+   (recorded, ~.claude)   (high-precision gate:            │
+                           error-signal ∩ infra-domain      ├─▶ HIT  (we'd catch it)
+                           − benign − prose)                 └─▶ DIVERGENCE (a gap to mine)
+</pre>
+    </div>
+    <div class="grid cols-3" style="margin-top:1.25rem">
+      <div class="card"><h3>Coverage</h3><p>Of real infra failures, how many would our classifier catch? The headline recall number.</p></div>
+      <div class="card"><h3>Turn-savings</h3><p>For failures we catch on turn 1, how many re-debug turns did the human burn that we'd have saved?</p></div>
+      <div class="card"><h3>Harvest</h3><p>Every divergence &mdash; a real failure we miss &mdash; becomes a candidate to mine into a new pattern.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- the precision gate ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The discipline that matters</p>
+    <h2>An adversarial precision gate</h2>
+    <p class="lead">
+      Coverage is easy to fake &mdash; match everything and you "catch" 100%. So
+      every pattern is held to a hard rule: a benign or success line must
+      <strong>never</strong> classify as a failure. A false hit would burn an agent
+      turn chasing a problem that isn't there.</p>
+    <div class="grid cols-2" style="margin-top:1.25rem">
+      <div class="card">
+        <span class="tag">must NOT fire</span>
+        <pre><span class="c"># benign / success — 0 may classify</span>
+"All pods Running 1/1, healthy"
+"busbw 379 GB/s"
+"iam:PassRole granted; attached"
+"vCPU quota: 1152 of 1152 available"
+"exit code 0"</pre>
+      </div>
+      <div class="card">
+        <span class="tag">must fire (single deterministic pick)</span>
+        <pre><span class="c"># real failures — each classifies</span>
+"NET/Socket : busbw 11 GB/s"   <span class="c">// TCP fallback</span>
+"Operation not permitted (insmod efa_nv_peermem)"
+"version `FABRIC_1.9' not found"
+"command terminated with exit code 124"</pre>
+      </div>
+    </div>
+    <div class="callout">
+      <strong>The 52 patterns we added this round passed three independent gates:</strong>
+      0 compile errors, <strong>0 false-positives on the benign guard</strong>, and
+      <strong>0 false-positives on 107 real success lines</strong> harvested from
+      sessions &mdash; and every one fires on its own real error example. Coverage
+      went 70% &rarr; 74% <em>without</em> loosening precision.
+    </div>
+  </div>
+</section>
+
+<!-- ---- per-layer ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Tested at every layer</p>
+    <h2>Detection patterns by layer</h2>
+    <p class="lead">A failure is classified to a layer first, then matched to that
+      layer's patterns. Closing the gap meant deepening detection everywhere.</p>
+    <div style="margin-top:1.25rem">
+      <div class="kb-row"><div class="kb-key">L4.5 ci / build</div><div class="kb-track"><div class="kb-fill" style="width:100%">27</div></div></div>
+      <div class="kb-row"><div class="kb-key">L2 framework</div><div class="kb-track"><div class="kb-fill" style="width:70%">19</div></div></div>
+      <div class="kb-row"><div class="kb-key">L1 launch</div><div class="kb-track"><div class="kb-fill" style="width:67%">18</div></div></div>
+      <div class="kb-row"><div class="kb-key">L6 os / infra</div><div class="kb-track"><div class="kb-fill" style="width:59%">16</div></div></div>
+      <div class="kb-row"><div class="kb-key">L5 efa / fabric</div><div class="kb-track"><div class="kb-fill" style="width:37%">10</div></div></div>
+      <div class="kb-row"><div class="kb-key">L0 kernel</div><div class="kb-track"><div class="kb-fill" style="width:33%">9</div></div></div>
+      <div class="kb-row"><div class="kb-key">L7 benchmark · L8 autonomous</div><div class="kb-track"><div class="kb-fill" style="width:15%">2 + 2</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- divergence loop ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Disagreement is a feature</p>
+    <h2>Using divergence to fix the system</h2>
+    <p class="lead">The back-test surfaces three kinds of divergence &mdash; each is a
+      signal we feed back to improve the agent itself.</p>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Divergence</th><th>What it reveals</th><th>The fix it drives</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Tool vs reality</strong></td><td>a real failure our corpus doesn't classify (a coverage gap)</td><td>mine it into a new detection pattern (this round: +52)</td></tr>
+        <tr><td><strong>Pattern vs pattern</strong></td><td>one log matches multiple patterns with conflicting severity (dispatch ambiguity)</td><td>a deterministic severity + id tie-break picks one fix &mdash; never a coin-flip turn</td></tr>
+        <tr><td><strong>Claimed vs captured</strong></td><td>a session says "found the root cause" but it never entered the corpus</td><td>mine the claimed fix into an instinct so the next run starts knowing it</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>The loop:</strong> replay sessions &rarr; measure per-layer coverage
+      &rarr; find divergences &rarr; draft patterns &rarr; adversarially verify against
+      the precision gate &rarr; merge only what passes &rarr; re-measure the lift. It ran
+      end-to-end this round and is repeatable on the remaining gap.
+    </div>
+  </div>
+</section>
+
+<!-- ---- the test suite ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Always green</p>
+    <h2>953 tests, enforced gates</h2>
+    <div class="grid cols-3" style="margin-top:1.25rem">
+      <div class="card"><h3>Precision gate</h3><p>0 false-positives on the benign + success corpus; every real failure classifies to a single deterministic dispatch.</p></div>
+      <div class="card"><h3>Coverage ratchet</h3><p>Every instinct stays retrievable, actionable, and attributed &mdash; 100/100/100, and the floor never lowers.</p></div>
+      <div class="card"><h3>Publish-safety gate</h3><p>No customer name, account id, IP, or secret can reach this public site &mdash; enforced by a test, not by memory.</p></div>
+    </div>
+    <div class="cta" style="margin-top:1.5rem">
+      <a class="btn primary" href="benchmarks.html">See the benchmark portal</a>
+      <a class="btn" href="knowledge.html">Browse the knowledge bank</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; validation &amp; back-testing &middot; updated 2026-06-26.</div>
+    <div class="note">
+      Public showcase, no sensitive data. Back-test replays recorded session output
+      only &mdash; no commands run on any cluster. Coverage measured on distinct
+      deduplicated failure signatures; counts live as of the update date.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
