@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmarks — agentic-harness</title>
+<meta name="description" content="The benchmark intelligence portal: a PR-gated source-of-truth repo of GPU benchmark artifacts, the measured-vs-estimated distinction, the publication state machine, and how the agent generates a report by calling deterministic tools — never inventing a number.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="value.html">Value</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="deep-dive.html">Deep dive</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="calculator.html">Calculator</a>
+    <a href="benchmarks.html" class="active">Benchmarks</a>
+    <a href="design.html">Design</a>
+  </div>
+</nav>
+
+<!-- ---- header ---- -->
+<header class="hero">
+  <div class="wrap">
+    <span class="tagline">a source of truth, not a slide deck</span>
+    <h1>Benchmark intelligence,<br>with provenance.</h1>
+    <p class="lead">
+      Every number a customer sees is one of two things, and it is always labeled:
+      a <span class="badge ship">measured</span> result that came off real hardware
+      and through a review gate, or an <span class="badge v2">estimated</span>
+      figure the deterministic calculator projected from public specs. The portal is
+      the machinery that keeps those two honest &mdash; a PR-gated repo of benchmark
+      artifacts, a publication state machine, and an agent that <em>retrieves</em>
+      numbers by calling tools rather than guessing them.
+    </p>
+  </div>
+</header>
+
+<!-- ---- what the repo is ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The source of truth</p>
+    <h2>A version-controlled benchmark repo, PR-gated</h2>
+    <p class="lead" style="margin-bottom:2rem">
+      Benchmarks live as immutable, reviewed artifacts in the repository &mdash; not
+      in a spreadsheet, a deck, or a model's memory. A number becomes citable only
+      after it passes schema validation, a review gate, and a second-person sign-off.
+    </p>
+
+    <div class="grid cols-3">
+      <div class="card">
+        <span class="tag">one run = one artifact</span>
+        <h3>Three files per benchmark</h3>
+        <p>Each result is a directory of three JSON files validated against a locked
+          schema: <code>config.json</code> (what was run), <code>results.json</code>
+          (the metrics), and <code>metadata.json</code> (who, what hardware, what
+          provenance, what state).</p>
+      </div>
+      <div class="card">
+        <span class="tag">immutable once published</span>
+        <h3>The id is a contract</h3>
+        <p>A <code>benchmark_id</code> like
+          <code>&lt;model&gt;-&lt;instance&gt;-&lt;workload&gt;-&lt;yyyymmdd&gt;-&lt;hash&gt;</code>
+          is frozen at publish. A re-run is a <em>new</em> artifact that
+          <code>supersedes</code> the old one &mdash; history is never overwritten.</p>
+      </div>
+      <div class="card">
+        <span class="tag">review-gated entry</span>
+        <h3>The PR is the gate</h3>
+        <p>Nothing self-publishes. A result enters through a pull request that the
+          schema check, the consensus gates, and a human reviewer must clear. The
+          author and the validator must be different people.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Why a repo and not a dashboard.</strong> A benchmark you can't
+      reproduce is an anecdote. Pinning every number to a commit, an image digest,
+      and a run command means a customer &mdash; or a skeptical engineer &mdash; can
+      re-run it and get the same answer. The repo <em>is</em> the audit trail.
+    </div>
+  </div>
+</section>
+
+<!-- ---- the artifact schema ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The artifact schema</p>
+    <h2>The shape of a benchmark</h2>
+    <p class="lead">
+      The schema is written once and locked. Below is the
+      <code>metadata.json</code> shape, shown with the
+      <code>kind: "example"</code> template &mdash; a schema illustration whose
+      every metric value is <code>0.0</code> and is <strong>never</strong> a real
+      measurement.
+    </p>
+
+    <div class="grid cols-2" style="margin-top:1.5rem">
+      <div class="card">
+        <span class="tag">metadata.json — the example template</span>
+<pre><span class="c">// kind:"example" — schema illustration, NOT a measurement</span>
+{
+  <span class="k">"benchmark_id"</span>: <span class="s">"&lt;model&gt;-&lt;instance&gt;-training-&lt;date&gt;-example"</span>,
+  <span class="k">"workload"</span>: <span class="s">"training"</span>,
+  <span class="k">"model"</span>: { <span class="k">"name"</span>: <span class="s">"example-model"</span>, <span class="k">"params_b"</span>: 0 },
+  <span class="k">"hardware"</span>: { <span class="k">"gpu"</span>: <span class="s">"H100"</span>, <span class="k">"instance_type"</span>: <span class="s">"&lt;instance&gt;"</span>,
+                <span class="k">"node_count"</span>: 8, <span class="k">"gpus_total"</span>: 64 },
+  <span class="k">"technique"</span>: { <span class="k">"framework"</span>: <span class="s">"&lt;fw&gt;"</span>, <span class="k">"precision"</span>: <span class="s">"bf16"</span> },
+  <span class="k">"kind"</span>: <span class="s">"example"</span>,        <span class="c">// measured | estimated | example</span>
+  <span class="k">"provenance"</span>: { <span class="k">"commit"</span>: <span class="s">"0000000"</span>,
+                  <span class="k">"measured_at"</span>: <span class="s">"&lt;date-time&gt;"</span> },
+  <span class="k">"validation"</span>: { <span class="k">"status"</span>: <span class="s">"example"</span> },
+  <span class="k">"messaging"</span>: { <span class="k">"customer_safe"</span>: false }
+}</pre>
+      </div>
+      <div class="card">
+        <span class="tag">what each block guarantees</span>
+        <p style="margin:.2rem 0"><strong><code>kind</code></strong> &mdash; the
+          single field that says whether this is a real run
+          (<span class="badge ship">measured</span>), a projection
+          (<span class="badge v2">estimated</span>), or a schema template
+          (<code>example</code>, never customer-facing).</p>
+        <p style="margin:.6rem 0 .2rem"><strong><code>provenance</code></strong>
+          &mdash; the commit, optional image digest, a redaction-safe command, and
+          the timestamp. This is what makes a result reproducible.</p>
+        <p style="margin:.6rem 0 .2rem"><strong><code>validation.status</code></strong>
+          &mdash; where the artifact sits in the state machine below.</p>
+        <p style="margin:.6rem 0 0"><strong><code>messaging.customer_safe</code></strong>
+          &mdash; defaults to <code>false</code>. A number is not shareable until a
+          human explicitly flips it, after the result is published.</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <strong>The example is a guardrail, not data.</strong> The locked schema ships
+      one worked artifact with <code>kind:"example"</code> and every metric at
+      <code>0.0</code>. It exists so tools and tests have a fixture to validate
+      against &mdash; and so no one can mistake a placeholder for a benchmark.
+    </div>
+  </div>
+</section>
+
+<!-- ---- measured vs estimated ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The distinction that matters</p>
+    <h2>Measured vs. estimated &mdash; never blurred</h2>
+    <p class="lead">
+      Both kinds are legitimate. What is forbidden is letting one masquerade as the
+      other. The badge color tells you which you're looking at, every time.
+    </p>
+
+    <div class="grid cols-2" style="margin-top:1.5rem">
+      <div class="card" style="border-top:3px solid var(--green)">
+        <span class="tag">kind: "measured"</span>
+        <div class="verdict fit" style="margin-top:.2rem"><span class="badge ship">measured</span> &nbsp;came off real hardware</div>
+        <p style="margin:.4rem 0 .2rem">A number observed on an actual run, pinned to
+          a commit and image digest, that cleared the review gate.</p>
+        <ul class="feat">
+          <li>per-metric <code>kind: "measured"</code> in <code>results.json</code></li>
+          <li>carries a <code>snapshot_id</code> &mdash; a deterministic hash of the inputs</li>
+          <li>only trustworthy if the fabric check passed (no silent TCP fallback)</li>
+          <li>citable as a <strong>validated benchmark</strong></li>
+        </ul>
+      </div>
+      <div class="card" style="border-top:3px solid var(--amber)">
+        <span class="tag">kind: "estimated"</span>
+        <div class="verdict tight" style="margin-top:.2rem"><span class="badge v2">estimated</span> &nbsp;projected from public specs</div>
+        <p style="margin:.4rem 0 .2rem">A directional figure the deterministic
+          calculator derived from published hardware specs and the request &mdash;
+          no GPU was touched.</p>
+        <ul class="feat">
+          <li>per-metric <code>kind: "estimated"</code> &mdash; same schema, different label</li>
+          <li>deterministic: same input always yields the same output</li>
+          <li>good for sizing and ballpark cost; not a performance claim</li>
+          <li>presented as a <strong>directional estimate</strong>, always</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>One field, two colors.</strong> A green
+      <span class="badge ship">measured</span> badge and an amber
+      <span class="badge v2">estimated</span> badge are driven by the artifact's own
+      <code>kind</code> &mdash; the portal can't render a measured-looking number
+      from estimated data. The
+      <a href="capabilities.html">DEGRADE classifier</a> guards the other failure
+      mode: a measured number captured while NCCL silently fell back to TCP is
+      flagged before it can be published as "real."
+    </div>
+  </div>
+</section>
+
+<!-- ---- publication state machine ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The lifecycle</p>
+    <h2>The publication state machine</h2>
+    <p class="lead">
+      An artifact's <code>validation.status</code> advances along a fixed path. A
+      number is only customer-citable once it reaches <code>published</code> &mdash;
+      and it can later age out.
+    </p>
+
+    <div class="diagram" style="margin-top:1.5rem">
+      <div class="flow-stack">
+        <div class="flow-box">
+          <div class="ft">draft</div>
+          <div class="fs">An artifact exists on a branch. Not yet schema-checked, not citable.</div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box agent">
+          <div class="ft">schema-ok</div>
+          <div class="fs">Validates clean against the locked
+            <code>metadata</code> / <code>results</code> / <code>config</code> schema.</div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box agent">
+          <div class="ft">in-review</div>
+          <div class="fs">Open in a PR. A reviewer who is <strong>not</strong> the
+            run operator inspects it &mdash; author ≠ validator is enforced.</div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box tool">
+          <div class="ft">validated</div>
+          <div class="fs">Consensus gates and the human reviewer signed off;
+            <code>gates_passed</code> records which.</div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box repo">
+          <div class="ft">published</div>
+          <div class="fs">Merged, immutable, citable. Only now can
+            <code>customer_safe</code> be flipped to <code>true</code> by a human.</div>
+        </div>
+        <div class="flow-arrow">&darr; &nbsp; later</div>
+        <div class="flow-box">
+          <div class="ft">stale &nbsp;|&nbsp; superseded</div>
+          <div class="fs"><code>stale</code>: the world moved (new driver, new image) and the
+            number needs a refresh. <code>superseded</code>: a newer artifact
+            <code>supersedes</code> this one. Neither deletes history.</div>
+        </div>
+      </div>
+    </div>
+
+    <table style="margin-top:1.5rem">
+      <thead><tr><th>Status</th><th>Meaning</th><th>Citable to a customer?</th></tr></thead>
+      <tbody>
+        <tr><td><code>draft</code></td><td>exists on a branch, unchecked</td><td class="cap-cell"><span class="cap-no">no</span></td></tr>
+        <tr><td><code>schema-ok</code></td><td>passes schema validation</td><td class="cap-cell"><span class="cap-no">no</span></td></tr>
+        <tr><td><code>in-review</code></td><td>open in a PR, under second-person review</td><td class="cap-cell"><span class="cap-no">no</span></td></tr>
+        <tr><td><code>validated</code></td><td>gates + reviewer signed off</td><td class="cap-cell"><span class="cap-part">internal only</span></td></tr>
+        <tr><td><code>published</code></td><td>merged, immutable, provenance complete</td><td class="cap-cell"><span class="cap-yes">yes, if customer_safe</span></td></tr>
+        <tr><td><code>stale</code></td><td>world changed, needs a refresh</td><td class="cap-cell"><span class="cap-part">with a caveat</span></td></tr>
+        <tr><td><code>superseded</code></td><td>a newer artifact replaced it</td><td class="cap-cell"><span class="cap-no">prefer the new one</span></td></tr>
+        <tr><td><code>example</code></td><td>the schema template fixture</td><td class="cap-cell"><span class="cap-no">never</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---- agent calls tools ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The number-provenance guard</p>
+    <h2>The agent retrieves numbers &mdash; it never invents them</h2>
+    <p class="lead">
+      A report reads like prose, but no quantitative claim in it originated in the
+      language model. The agent fills slots and formats; deterministic tools supply
+      every number, and each number arrives already labeled with its
+      <code>kind</code> and provenance.
+    </p>
+
+    <div class="diagram" style="margin-top:1.5rem">
+      <div class="flow-stack">
+        <div class="flow-box">
+          <div class="ft">1 &middot; the ask</div>
+          <div class="fs"><code>"How does a 70B model train on a p5 cluster?"</code>
+            &rarr; the agent parses the request into a benchmark selector
+            (model, workload, hardware).</div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box tool">
+          <div class="ft">2 &middot; CALL <code>query_benchmark(selector)</code></div>
+          <div class="fs">A deterministic tool searches the repo for
+            <code>published</code> artifacts matching the selector and returns the
+            artifacts <strong>verbatim</strong> &mdash; values, units, and
+            <code>kind</code> intact. If nothing matches, it returns <em>nothing</em>.</div>
+        </div>
+        <div class="flow-arrow">&darr; &nbsp; matched artifacts (or none)</div>
+        <div class="flow-box tool">
+          <div class="ft">3 &middot; fall back to <code>estimate</code>, labeled</div>
+          <div class="fs">No measured match? The deterministic calculator returns an
+            <code>estimated</code> figure from public specs &mdash; same input, same
+            output &mdash; tagged so it can never be mistaken for a measurement.</div>
+        </div>
+        <div class="flow-arrow">&darr; &nbsp; tool outputs only</div>
+        <div class="flow-box agent">
+          <div class="ft">4 &middot; CALL <code>generate_report(artifacts)</code></div>
+          <div class="fs">The report builder renders prose <strong>around</strong>
+            the tool outputs. The model never types a benchmark digit &mdash; it
+            arranges numbers the tools already produced, each with its
+            <span class="badge ship">measured</span> /
+            <span class="badge v2">estimated</span> tag.</div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box repo">
+          <div class="ft">5 &middot; the report</div>
+          <div class="fs">Every figure links back to its artifact id, commit, and
+            <code>kind</code>. A reader can trace any claim to a repo entry &mdash;
+            or see plainly that it was a directional estimate.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <strong>The guard, concretely.</strong> The report builder accepts numbers
+      <em>only</em> from <code>query_benchmark</code> and the deterministic estimator;
+      a free-form number in model output is not a permitted source. If a question has
+      no published artifact and no estimable answer, the honest output is "no
+      benchmark on file for that configuration" &mdash; the same refusal discipline
+      the <a href="deep-dive.html">conversational layer</a> uses for off-corpus
+      questions. A made-up number is a bug, not a fallback.
+    </div>
+  </div>
+</section>
+
+<!-- ---- status ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Honest status</p>
+    <h2>What's built vs. planned</h2>
+    <p>The schema, the example fixture, and the kind/state discipline are locked.
+      Retrieval and report generation are the v2 surface &mdash; tagged honestly,
+      same as everywhere else on this site.</p>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Piece</th><th>What it is</th><th class="cap-cell">Status</th></tr></thead>
+      <tbody>
+        <tr><td>Locked artifact schema</td><td>metadata / results / config, draft-07, additionalProperties off</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Example fixture (<code>kind:"example"</code>)</td><td>worked template, all metrics 0.0, never customer-facing</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>measured / estimated labeling</td><td>per-artifact and per-metric <code>kind</code></td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Publication state machine</td><td>draft &rarr; &hellip; &rarr; published (&rarr; stale / superseded)</td><td class="cap-cell"><span class="badge ship">defined</span></td></tr>
+        <tr><td>PR + author≠validator gate</td><td>review-gated entry, second-person sign-off</td><td class="cap-cell"><span class="badge warn2">process</span></td></tr>
+        <tr><td><code>query_benchmark</code> retrieval</td><td>selector &rarr; verbatim published artifacts</td><td class="cap-cell"><span class="badge v2">planned v2</span></td></tr>
+        <tr><td><code>generate_report</code></td><td>prose around tool outputs, provenance-linked</td><td class="cap-cell"><span class="badge v2">planned v2</span></td></tr>
+        <tr><td>Report &rarr; S3 + signed download</td><td>persist exec + technical artifacts</td><td class="cap-cell"><span class="badge v2">planned v2</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---- cta ---- -->
+<section>
+  <div class="wrap" style="text-align:center">
+    <h2>See where the numbers come from</h2>
+    <p class="lead" style="margin:0 auto 1.5rem">
+      Try the deterministic estimator, or read how the layers fit together.
+    </p>
+    <div class="cta" style="justify-content:center">
+      <a class="btn primary" href="calculator.html">Try the calculator</a>
+      <a class="btn" href="deep-dive.html">Read the deep dive</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; benchmark intelligence, with provenance.</div>
+    <div class="note">
+      Public showcase, no sensitive data. No customer names, account ids, or
+      addresses appear here, and no real benchmark numbers &mdash; the only artifact
+      shown is the <code>kind:"example"</code> template whose values are
+      <code>0.0</code> by design. Every shareable number lives in the PR-gated repo
+      with full provenance; the agent retrieves them deterministically and never
+      fabricates one. Full detail in the <a href="design.html">design doc</a>.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
