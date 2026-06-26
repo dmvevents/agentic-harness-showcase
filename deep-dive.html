@@ -44,8 +44,11 @@
     <p class="lead">
       A GPU cluster fails &mdash; and improves &mdash; at every layer from the CUDA
       kernel to the operational knowledge that codifies what went wrong. The agent
-      maps each layer to a specific optimizer, with an honest status: not everything
-      is built, and the framework says so.
+      maps each layer to a specific optimizer, with an honest status:
+      <strong>9 of 12 layers are implemented</strong> (each entrypoint resolves to a
+      real, tested callable &mdash; enforced by a ratchet test); the remaining three
+      stay aspirational because their optimizers would be stubs on real data, and the
+      framework refuses to call that green.
     </p>
     <table style="margin-top:1.25rem">
       <thead><tr><th>Layer</th><th>Covers</th><th>Optimizer</th><th class="cap-cell">Status</th></tr></thead>
@@ -56,10 +59,10 @@
         <tr><td><code>L3</code> host lib</td><td>host libraries, multi-LLM synthesis</td><td>synth engine (multi-LLM)</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
         <tr><td><code>L4</code> transport plugin</td><td>aws-ofi-nccl / transport plugins</td><td>instinct promote</td><td class="cap-cell"><span class="badge v2">aspirational</span></td></tr>
         <tr><td><code>L4.5</code> CI / build env</td><td>build reproducibility, deploy lessons</td><td>deploy-harness lesson promote</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
-        <tr><td><code>L5</code> fabric / EFA</td><td>EFA provider + fabric preflight</td><td>efa-env preflight</td><td class="cap-cell"><span class="badge degr">partial</span></td></tr>
+        <tr><td><code>L5</code> fabric / EFA</td><td>EFA provider preflight + fabric log scan</td><td>efa-env preflight · harness scan</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
         <tr><td><code>L6</code> OS / infra</td><td>kernel modules, daemonsets, node config</td><td>daemonset loader</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
         <tr><td><code>L7</code> benchmark</td><td>noise-floor-aware measurement</td><td>noise-floor bench</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
-        <tr><td><code>L8</code> autonomous</td><td>agent behavior / self-direction</td><td>agent-behavior write</td><td class="cap-cell"><span class="badge v2">aspirational</span></td></tr>
+        <tr><td><code>L8</code> autonomous</td><td>recursive self-improvement from own behavior</td><td>agent-behavior write</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
         <tr><td><code>L9</code> knowledge</td><td>extract &amp; enrich operational knowledge</td><td>instinct extract + enrich</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
       </tbody>
     </table>
