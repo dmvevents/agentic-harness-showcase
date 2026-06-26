@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Business value — agentic-harness</title>
+<meta name="description" content="The business case for agentic-harness: turn one engineer's GPU-cluster expertise into an agent that stands up and validates infrastructure in ~90 minutes, gets cheaper and more reliable every run, and never reports a number it can't back up.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="value.html" class="active">Value</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="deep-dive.html">Deep dive</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="calculator.html">Calculator</a>
+    <a href="design.html">Design</a>
+  </div>
+</nav>
+
+<!-- ---- hero ---- -->
+<header class="hero">
+  <div class="wrap">
+    <span class="tagline">the business case &middot; updated 2026-06-26</span>
+    <h1>Two weeks of expert<br>cluster work, in 90 minutes.</h1>
+    <p class="lead">
+      <strong>agentic-harness</strong> turns one engineer's hard-won GPU-cluster
+      expertise into an agent that stands up and validates infrastructure in about
+      ninety minutes, gets cheaper and more reliable on every run, and never reports
+      a number it can't back up. Below: what creates that value, and how it's measured.
+    </p>
+  </div>
+</header>
+
+<!-- ---- the headline numbers ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Why it matters</p>
+    <h2>The value, four ways</h2>
+    <div class="grid cols-4" style="margin-top:1.5rem">
+      <div class="card stat"><div class="num">~90<span class="unit">min</span></div><div class="label">autonomous bring-up vs. ~2 weeks of SA back-and-forth</div></div>
+      <div class="card stat"><div class="num">9<span class="unit">/12</span></div><div class="label">optimization layers implemented &amp; test-gated</div></div>
+      <div class="card stat"><div class="num">316</div><div class="label">codified instincts — tribal knowledge, version-controlled</div></div>
+      <div class="card stat"><div class="num">100<span class="unit">%</span></div><div class="label">claims sourced or labeled directional — no hallucinated numbers</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- the value levers ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Where the value comes from</p>
+    <h2>Five levers, each tied to a real mechanism</h2>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Lever</th><th>What it does for the business</th><th>The mechanism behind it</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Time</strong></td>
+          <td>A cold-start that took ~2 weeks of expert back-and-forth becomes one Slack message and a ~90-minute run.</td>
+          <td>Goal sentence &rarr; synthesized plan &rarr; empirical ladder (apply / classify / fix / retry).</td>
+        </tr>
+        <tr>
+          <td><strong>Cost</strong></td>
+          <td>Spend on the cheapest model that actually solves the task; avoid over-provisioning GPUs.</td>
+          <td>UCB bandit picks the LLM per task; capacity discovery + directional sizing right-size the cluster.</td>
+        </tr>
+        <tr>
+          <td><strong>Reliability</strong></td>
+          <td>Known failures are fixed from a codified playbook, not re-debugged. Hardware traps are caught before any apply.</td>
+          <td>52 compiled detect&rarr;fix patterns; plan-time validation (caught the B200 NIC trap and a driver-ordering bug).</td>
+        </tr>
+        <tr>
+          <td><strong>Trust</strong></td>
+          <td>Every quantitative claim in a customer report is sourced or clearly labeled directional.</td>
+          <td>The agent can't emit a number a deterministic tool didn't return; benchmark numbers carry provenance.</td>
+        </tr>
+        <tr>
+          <td><strong>Compounding</strong></td>
+          <td>Every incident makes the next bring-up smarter — expertise stops leaving when an engineer does.</td>
+          <td>The log-learner mines real sessions into reviewed instincts; the agent learns from its own behavior (L8).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---- the engine room ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The engine room</p>
+    <h2>The learning machinery, in plain terms</h2>
+    <div class="grid cols-2" style="margin-top:1.5rem">
+      <div class="card">
+        <span class="tag">cost control</span>
+        <h3>UCB bandit — spend where it pays</h3>
+        <p>A multi-armed bandit where <strong>each arm is an LLM model</strong>. It
+          balances exploiting the model that has worked against exploring a cheaper
+          one, using a UCB1 score with asymmetric exploration and exponential decay.
+          The practical effect: the agent doesn't reflexively reach for the most
+          expensive model — it learns which model is worth it for which job.</p>
+      </div>
+      <div class="card">
+        <span class="tag">don't-repeat-mistakes</span>
+        <h3>Meta-learner — a corpus, not a vibe</h3>
+        <p>316 atomic instincts, each with a <strong>positive and a negative
+          example</strong> and an <code>applies_to</code> qualifier. The negative
+          example is the load-bearing part — it primes "don't do X," which is what
+          stops the agent repeating a known failure. Retrieval filters to the few
+          instincts that actually apply to the task in front of it.</p>
+      </div>
+      <div class="card">
+        <span class="tag">it gets smarter</span>
+        <h3>Log-learner — knowledge from what broke</h3>
+        <p>Real session, deploy, and system logs are mined into <em>candidate</em>
+          instincts through a review-gated pump. The corpus grows from what actually
+          failed in production, not from guesses — and a contributor can't
+          self-approve their own entry. Tribal knowledge becomes a retrievable asset.</p>
+      </div>
+      <div class="card">
+        <span class="tag">positive + negative</span>
+        <h3>Why both examples matter</h3>
+        <p>A positive example shows the fix that worked; the negative example shows
+          the trap that didn't. Together they're what let the agent
+          <strong>reduce wasted turns</strong> — it recognizes a failure signature
+          and reaches for the codified fix instead of re-deriving it, which is where
+          both the time and the cost savings come from.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- what you can run ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">What you can run through it</p>
+    <h2>Test &middot; train &middot; infer &middot; optimize</h2>
+    <p class="lead">All of these run as catalog modules through the same plan &rarr;
+      ladder loop — so each gets the same failure-classification, self-healing, and
+      audit trail.</p>
+    <div class="grid cols-4" style="margin-top:1.5rem">
+      <div class="card"><h3>Test</h3><p>Unprivileged NCCL allreduce + hardware-counter checks to prove the fabric is real RDMA, not silent TCP.</p></div>
+      <div class="card"><h3>Train</h3><p>FSDP, Megatron-LM (TP/PP/DP), and NeMo RL training runs on a validated multi-node cluster.</p></div>
+      <div class="card"><h3>Infer</h3><p>Disaggregated inference deploys; latency / throughput measured against an SLA gate.</p></div>
+      <div class="card"><h3>Optimize</h3><p>Kernel optimization at L0 via the evolution engine — compile, verify, benchmark, keep the best.</p></div>
+    </div>
+    <div class="callout">
+      <strong>The same discipline applies to all four.</strong> A throughput number
+      captured while NCCL silently fell back to TCP isn't slow — it's <em>invalid</em>.
+      The classifier flags that before the number reaches a report. That is the
+      difference between a benchmark and a guess.
+    </div>
+  </div>
+</section>
+
+<!-- ---- the one-liner ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">If you remember one thing</p>
+    <h2>The executive one-liner</h2>
+    <div class="callout">
+      It turns one engineer's hard-won GPU-cluster knowledge into an agent that
+      <strong>stands up and validates infrastructure in ~90 minutes</strong>, gets
+      <strong>cheaper and more reliable every run</strong>, and
+      <strong>never reports a number it can't back up</strong>.
+    </div>
+    <div class="cta" style="margin-top:1.5rem">
+      <a class="btn primary" href="capabilities.html">See the capabilities</a>
+      <a class="btn" href="deep-dive.html">How it works, layer by layer</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; business value &middot; updated 2026-06-26.</div>
+    <div class="note">
+      Public showcase, no sensitive data. The ~90-minute and 2-week figures are
+      directional, based on the cold-start cluster bring-up workflow this agent
+      automates; layer and corpus counts are live as of the update date. Numbers in
+      the calculator are directional public-spec estimates, not benchmarks.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
