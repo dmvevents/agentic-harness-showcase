@@ -232,6 +232,14 @@ tbody tr:hover { background: var(--bg-2); }
 .cap-part { color: var(--amber); font-weight: 700; }
 td.cap-cell, th.cap-cell { text-align: center; white-space: nowrap; }
 
+/* ---------------------------------------------------------------- knowledge bank bars */
+.kb-row { display: flex; align-items: center; gap: 0.75rem; margin: 0.4rem 0; }
+.kb-key { flex: 0 0 200px; font-family: var(--mono); font-size: 0.82rem; color: var(--text-dim); text-align: right; }
+.kb-track { flex: 1; background: var(--bg-2); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; height: 22px; }
+.kb-fill { height: 100%; background: linear-gradient(90deg, rgba(54,179,244,0.35), rgba(54,179,244,0.7)); display: flex; align-items: center; padding-left: 8px; font-size: 0.74rem; font-weight: 700; color: var(--text); }
+.kb-instinct { border-left: 3px solid var(--accent-2); }
+.kb-instinct .neg { color: var(--amber); font-family: var(--mono); font-size: 0.82rem; }
+
 /* ---------------------------------------------------------------- calculator */
 .calc-grid { display: grid; grid-template-columns: 360px 1fr; gap: 1.5rem; align-items: start; }
 .calc-form { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.3rem; }

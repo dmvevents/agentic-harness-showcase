@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge bank — agentic-harness</title>
+<meta name="description" content="The agent's knowledge bank: 316 codified instincts + 52 detect→fix patterns + a HyperPod Q&A KB, broken down by kind, layer, and substrate — version-controlled, coverage-ratcheted, and grounded in real failures.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="value.html">Value</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="knowledge.html" class="active">Knowledge bank</a>
+    <a href="deep-dive.html">Deep dive</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="calculator.html">Calculator</a>
+    <a href="benchmarks.html">Benchmarks</a>
+    <a href="design.html">Design</a>
+  </div>
+</nav>
+
+<!-- ---- header ---- -->
+<header class="hero">
+  <div class="wrap">
+    <span class="tagline">what the agent has learned &middot; updated 2026-06-26</span>
+    <h1>The knowledge bank.</h1>
+    <p class="lead">
+      The agent's learnings are not a prompt &mdash; they're a version-controlled
+      corpus: <strong>316 atomic instincts</strong>, <strong>52 compiled
+      detect&rarr;fix patterns</strong>, and a <strong>30-entry HyperPod Q&amp;A
+      KB</strong>. Every entry is grounded in a real failure, carries a positive and
+      a negative example, and is bounded by where it applies. Below is the shape of
+      that knowledge &mdash; counts and representative samples, with all
+      customer/account/host specifics excluded.
+    </p>
+  </div>
+</header>
+
+<!-- ---- totals ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The corpus</p>
+    <h2>What the agent knows</h2>
+    <div class="grid cols-4" style="margin-top:1.5rem">
+      <div class="card stat"><div class="num">316</div><div class="label">atomic instincts</div></div>
+      <div class="card stat"><div class="num">52</div><div class="label">compiled detect&rarr;fix patterns</div></div>
+      <div class="card stat"><div class="num">30</div><div class="label">HyperPod Q&amp;A entries</div></div>
+      <div class="card stat"><div class="num">100<span class="unit">%</span></div><div class="label">retrievable &middot; actionable &middot; attributed</div></div>
+    </div>
+    <div class="callout">
+      <strong>Coverage, not count.</strong> Every instinct is
+      <strong>retrievable</strong> (reachable by phase or layer),
+      <strong>actionable</strong> (has a positive <em>and</em> a negative example),
+      and <strong>attributed</strong> (has a source). That 100/100/100 floor is
+      enforced by a test and a pre-commit hook and never lowers &mdash; raw count is
+      treated as a vanity metric.
+    </div>
+  </div>
+</section>
+
+<!-- ---- by kind ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">By kind</p>
+    <h2>Gotchas and patterns</h2>
+    <div style="margin-top:1.25rem">
+      <div class="kb-row"><div class="kb-key">gotcha</div><div class="kb-track"><div class="kb-fill" style="width:74%">234</div></div></div>
+      <div class="kb-row"><div class="kb-key">pattern</div><div class="kb-track"><div class="kb-fill" style="width:26%">82</div></div></div>
+    </div>
+    <p style="color:var(--text-dim); font-size:.9rem; margin-top:1rem">
+      A <em>gotcha</em> is a "don't-step-here" — a trap verified in production. A
+      <em>pattern</em> is a reusable detect&rarr;fix shape. Together they're what let
+      the agent recognize a failure signature and reach for a codified fix instead of
+      re-debugging from scratch.</p>
+  </div>
+</section>
+
+<!-- ---- by layer ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">By layer</p>
+    <h2>Where the knowledge concentrates</h2>
+    <p class="lead">Instincts map to the 12-layer stack, so a failure can be
+      classified to a layer and answered from that layer's learnings.</p>
+    <div style="margin-top:1.25rem">
+      <div class="kb-row"><div class="kb-key">L4.5 ci / build env</div><div class="kb-track"><div class="kb-fill" style="width:100%">127</div></div></div>
+      <div class="kb-row"><div class="kb-key">L6 os / infra</div><div class="kb-track"><div class="kb-fill" style="width:52%">66</div></div></div>
+      <div class="kb-row"><div class="kb-key">L2 framework</div><div class="kb-track"><div class="kb-fill" style="width:45%">57</div></div></div>
+      <div class="kb-row"><div class="kb-key">L5 efa / fabric</div><div class="kb-track"><div class="kb-fill" style="width:39%">49</div></div></div>
+      <div class="kb-row"><div class="kb-key">L1 launch</div><div class="kb-track"><div class="kb-fill" style="width:27%">34</div></div></div>
+      <div class="kb-row"><div class="kb-key">L0 kernel</div><div class="kb-track"><div class="kb-fill" style="width:20%">26</div></div></div>
+      <div class="kb-row"><div class="kb-key">L8 autonomous</div><div class="kb-track"><div class="kb-fill" style="width:18%">23</div></div></div>
+      <div class="kb-row"><div class="kb-key">L7 benchmark</div><div class="kb-track"><div class="kb-fill" style="width:16%">20</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- by substrate ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">By substrate</p>
+    <h2>Bounded by where it applies</h2>
+    <p class="lead">Each instinct carries an <code>applies_to</code> qualifier so an
+      EFA-only rule never leaks into a TCP or single-host project. Universal rules
+      (no substrate constraint) always apply.</p>
+    <div style="margin-top:1.25rem">
+      <div class="kb-row"><div class="kb-key">efa_srd</div><div class="kb-track"><div class="kb-fill" style="width:100%">180</div></div></div>
+      <div class="kb-row"><div class="kb-key">(universal)</div><div class="kb-track"><div class="kb-fill" style="width:49%">89</div></div></div>
+      <div class="kb-row"><div class="kb-key">nvlink</div><div class="kb-track"><div class="kb-fill" style="width:38%">68</div></div></div>
+      <div class="kb-row"><div class="kb-key">tcp</div><div class="kb-track"><div class="kb-fill" style="width:27%">49</div></div></div>
+      <div class="kb-row"><div class="kb-key">ib_rc (InfiniBand)</div><div class="kb-track"><div class="kb-fill" style="width:20%">36</div></div></div>
+      <div class="kb-row"><div class="kb-key">single_host</div><div class="kb-track"><div class="kb-fill" style="width:20%">36</div></div></div>
+      <div class="kb-row"><div class="kb-key">roce_v2</div><div class="kb-track"><div class="kb-fill" style="width:8%">14</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- sample instincts ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Representative learnings</p>
+    <h2>Six instincts, one per layer</h2>
+    <p class="lead">A sample of high-confidence instincts, customer/account/host
+      specifics removed. Each pairs a rule with a &le;48-char negative prime
+      (&ldquo;don't do X&rdquo;) that primes the agent before it acts.</p>
+
+    <div class="grid cols-2" style="margin-top:1.5rem">
+      <div class="card kb-instinct">
+        <span class="tag">K0003 &middot; L6 os/infra &middot; conf 0.99</span>
+        <p style="margin:.3rem 0">On HyperPod EKS p5/p5en, kernel modules
+          (<code>efa_nv_peermem</code>, <code>gdrdrv</code>, <code>nvidia_peermem</code>)
+          can't be loaded from <code>kubectl debug</code> ("Operation not permitted")
+          — use a hostPID DaemonSet.</p>
+        <p class="neg">&#10007; kubectl debug cannot modprobe; use hostPID DaemonSet</p>
+      </div>
+      <div class="card kb-instinct">
+        <span class="tag">K0005 &middot; L5 efa/fabric &middot; conf 0.99</span>
+        <p style="margin:.3rem 0">RDMA fabrics in a cloud VPC silently drop frames on
+          a <strong>secondary/overlay CIDR</strong> (verified on EFA SRD; same trap on
+          RoCEv2). Use the primary CIDR + a self-referencing SG rule.</p>
+        <p class="neg">&#10007; SRD drops on secondary CIDR; primary CIDR + self-ref SG</p>
+      </div>
+      <div class="card kb-instinct">
+        <span class="tag">K0011 &middot; L4.5 ci/build &middot; conf 0.99</span>
+        <p style="margin:.3rem 0">The aws-efa-k8s-device-plugin v0.5.4 nodeAffinity
+          allowlist omits <code>p6-b200.48xlarge</code> → DaemonSet desired=0 → no node
+          advertises <code>vpc.amazonaws.com/efa</code>.</p>
+        <p class="neg">&#10007; device-plugin v0.5.4 missing p6-b200 in allowlist</p>
+      </div>
+      <div class="card kb-instinct">
+        <span class="tag">K0060 &middot; L2 framework &middot; conf 0.98</span>
+        <p style="margin:.3rem 0">The <code>NIXL_BACKEND</code> family of env vars is
+          <strong>not read</strong> anywhere in the vLLM connector — setting them is a
+          no-op. Configure via the connector extra-config instead.</p>
+        <p class="neg">&#10007; NIXL_BACKEND env-var unread; use kv_connector_extra</p>
+      </div>
+      <div class="card kb-instinct">
+        <span class="tag">K0020 &middot; L0 kernel &middot; conf 0.97</span>
+        <p style="margin:.3rem 0">A B200 <code>cudaErrorNvlinkUncorrectable</code> is a
+          <strong>hardware</strong> fault, not a recipe bug — a pod restart re-rolls the
+          dice; cordon the node instead of chasing the software.</p>
+        <p class="neg">&#10007; NVLink uncorrectable = hardware; cordon, don't re-debug</p>
+      </div>
+      <div class="card kb-instinct">
+        <span class="tag">K0102 &middot; L7 benchmark &middot; conf 0.97</span>
+        <p style="margin:.3rem 0">A chat-completion 200 with content but
+          <code>transfer_count=0</code> and symmetric tx=rx on one NIC is
+          <strong>EFA-NOT-VERIFIED</strong> — never claim disagg-over-EFA without
+          hardware-counter proof.</p>
+        <p class="neg">&#10007; completion 200 ≠ disagg verified; prove with hw counters</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- how it grows ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">How it grows</p>
+    <h2>The bank curates itself</h2>
+    <div class="diagram" style="margin-top:1rem">
+<pre>
+ mine            →  extract        →  enrich         →  review        →  promote
+ (sessions,         (candidate         (multi-LLM        (human gate,     (canonical,
+  deploy logs,       instinct,          confidence +      pos/neg          ratchet-
+  GitHub issues,     blank examples)    applies_to)       examples)        enforced)
+  Slack)
+</pre>
+    </div>
+    <div class="callout">
+      New knowledge enters only through a review-gated pump &mdash; a miner proposes,
+      a reviewer validates, and the coverage ratchet refuses anything that isn't
+      retrievable, actionable, and attributed. A candidate can never self-promote.
+      <a href="deep-dive.html">See the meta-learner &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; knowledge bank &middot; updated 2026-06-26.</div>
+    <div class="note">
+      Public showcase, no sensitive data. Counts are live as of the update date.
+      Sample instincts have all customer, account-id, IP, and internal-hostname
+      specifics removed; the full corpus is internal-only.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
