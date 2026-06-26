@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep dive — agentic-harness</title>
+<meta name="description" content="A solution-architect's deep dive into agentic-harness: the 12-layer optimization stack, how the meta-learner retrieves and applies instincts, the autonomous orchestration loop, POC bring-up, and the corpus-grounded conversational layer.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="deep-dive.html" class="active">Deep dive</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="calculator.html">Calculator</a>
+    <a href="DESIGN.md">Design doc</a>
+  </div>
+</nav>
+
+<!-- ---- header ---- -->
+<header class="hero">
+  <div class="wrap">
+    <span class="tagline">a solution architect's walkthrough</span>
+    <h1>How it actually works,<br>layer by layer.</h1>
+    <p class="lead">
+      Beneath the three lanes is a layered optimization framework, a self-curating
+      knowledge store, and an autonomous control loop. This page is the deeper
+      story: what each layer covers, how the meta-learner decides what's relevant,
+      and how the agent stands up infrastructure, deploys a POC, and answers a
+      customer from a version-controlled corpus &mdash; not from a model guessing.
+    </p>
+  </div>
+</header>
+
+<!-- ---- the 12-layer stack ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The optimization stack</p>
+    <h2>Twelve layers, L0 &rarr; L9</h2>
+    <p class="lead">
+      A GPU cluster fails &mdash; and improves &mdash; at every layer from the CUDA
+      kernel to the operational knowledge that codifies what went wrong. The agent
+      maps each layer to a specific optimizer, with an honest status: not everything
+      is built, and the framework says so.
+    </p>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Layer</th><th>Covers</th><th>Optimizer</th><th class="cap-cell">Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>L0</code> kernel</td><td>CUDA kernel correctness &amp; perf</td><td>evolution engine</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
+        <tr><td><code>L1</code> launch</td><td>launch bounds / occupancy</td><td>launch-bounds sweep</td><td class="cap-cell"><span class="badge v2">aspirational</span></td></tr>
+        <tr><td><code>L2</code> framework</td><td>framework-level config (vLLM, NCCL knobs)</td><td>instinct promote</td><td class="cap-cell"><span class="badge v2">aspirational</span></td></tr>
+        <tr><td><code>L3</code> host lib</td><td>host libraries, multi-LLM synthesis</td><td>synth engine (multi-LLM)</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
+        <tr><td><code>L4</code> transport plugin</td><td>aws-ofi-nccl / transport plugins</td><td>instinct promote</td><td class="cap-cell"><span class="badge v2">aspirational</span></td></tr>
+        <tr><td><code>L4.5</code> CI / build env</td><td>build reproducibility, deploy lessons</td><td>deploy-harness lesson promote</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
+        <tr><td><code>L5</code> fabric / EFA</td><td>EFA provider + fabric preflight</td><td>efa-env preflight</td><td class="cap-cell"><span class="badge degr">partial</span></td></tr>
+        <tr><td><code>L6</code> OS / infra</td><td>kernel modules, daemonsets, node config</td><td>daemonset loader</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
+        <tr><td><code>L7</code> benchmark</td><td>noise-floor-aware measurement</td><td>noise-floor bench</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
+        <tr><td><code>L8</code> autonomous</td><td>agent behavior / self-direction</td><td>agent-behavior write</td><td class="cap-cell"><span class="badge v2">aspirational</span></td></tr>
+        <tr><td><code>L9</code> knowledge</td><td>extract &amp; enrich operational knowledge</td><td>instinct extract + enrich</td><td class="cap-cell"><span class="badge ship">implemented</span></td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>Why a layer model matters to a customer.</strong> When a benchmark is
+      slow or a bring-up hangs, the question is always <em>which layer</em>. A TCP
+      fallback is L5 (fabric). A bad NCCL algorithm is L2 (framework). A missing
+      kernel module is L6 (OS). The agent classifies the failure to a layer first,
+      then reaches for that layer's optimizer &mdash; instead of guessing.
+    </div>
+  </div>
+</section>
+
+<!-- ---- the meta-learner ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The meta-learner</p>
+    <h2>A self-curating knowledge store, not a static FAQ</h2>
+    <p class="lead">
+      The corpus is 316 atomic <em>instincts</em>. Each is a structured fact: a rule,
+      its evidence, a confidence, a positive and a negative example, and an
+      <code>applies_to</code> qualifier that bounds where it's true. The meta-learner
+      is how the agent retrieves the <em>right</em> few for the task in front of it.
+    </p>
+
+    <div class="grid cols-2" style="margin-top:1.5rem">
+      <div class="card">
+        <span class="tag">the atomic instinct</span>
+        <pre><span class="c">// one instinct — structured, bounded, attributed</span>
+{
+  <span class="k">"id"</span>: "K0014",
+  <span class="k">"kind"</span>: "gotcha",
+  <span class="k">"rule"</span>: "NCCL silently uses TCP if EFA
+           plugin isn't advertised",
+  <span class="k">"applies_to"</span>: { <span class="s">"substrate"</span>: ["efa_srd"],
+                  <span class="s">"layer"</span>: ["L5_efa_fabric"] },
+  <span class="k">"confidence"</span>: 0.92,
+  <span class="k">"positive_example"</span>: "...",
+  <span class="k">"negative_example"</span>: "...",
+  <span class="k">"source"</span>: "verified on p5.48xlarge"
+}</pre>
+      </div>
+      <div class="card">
+        <span class="tag">retrieval — two-stage filter</span>
+        <p style="margin:.2rem 0"><strong>1. <code>applies_to</code> gate.</strong>
+          Given the project profile (substrate, layer, workload, instance type),
+          only instincts whose qualifier <em>matches that profile</em> survive.
+          EFA-only rules never leak into a TCP or single-host project. Universal
+          rules (empty qualifier) always pass.</p>
+        <p style="margin:.6rem 0 .2rem"><strong>2. Keyword scoring.</strong>
+          Score the survivors by overlap between the task description and each
+          instinct's rule / evidence / source. <strong>Ties break on confidence.</strong></p>
+        <p style="margin:.6rem 0 0">Return the top-<em>n</em> (default 3), each
+          carrying a &le;40-char <code>negative_rule_short</code> to prime the prompt:
+          <em>"don't do X."</em></p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>The coverage ratchet.</strong> Every instinct must stay
+      <strong>retrievable</strong> (reachable by phase or layer),
+      <strong>actionable</strong> (has a positive <em>and</em> a negative example),
+      and <strong>attributed</strong> (has a source). The floor is 100% / 100% / 100%,
+      enforced by a test and a pre-commit hook &mdash; it never lowers. Raw instinct
+      <em>count</em> is treated as a vanity metric; coverage is the real number.
+    </div>
+
+    <h3 style="margin-top:2rem">How the store grows itself</h3>
+    <p>New knowledge enters through a disciplined, review-gated pipeline &mdash; never
+      by overwriting the canonical corpus directly:</p>
+    <div class="diagram" style="margin-top:1rem">
+<pre>
+ mine            →  extract        →  enrich         →  review        →  promote
+ (git history,      (candidate         (multi-LLM        (human gate,     (canonical,
+  failure logs,      instinct,          confidence +      pos/neg          ratchet-
+  GitHub issues,     blank pos/neg)     applies_to)       examples)        enforced)
+  Slack, sessions)
+</pre>
+    </div>
+    <p style="color:var(--text-dim); font-size:.92rem">
+      Authoring and approval are separate passes &mdash; a miner proposes, a reviewer
+      validates. A candidate cannot self-promote, and the ratchet refuses any
+      instinct that isn't retrievable, actionable, and attributed.
+    </p>
+  </div>
+</section>
+
+<!-- ---- the autonomous loop ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Autonomous orchestration</p>
+    <h2>Goal sentence &rarr; running infrastructure</h2>
+    <p class="lead">
+      The <code>orchestrate</code> lane turns one sentence into an ordered plan, then
+      drives it through an empirical ladder that observes, diagnoses, fixes, and
+      retries &mdash; the same loop a human SRE runs, made deterministic.
+    </p>
+
+    <div class="diagram" style="margin-top:1.5rem">
+      <div class="flow-stack">
+        <div class="flow-box">
+          <div class="ft">1 &middot; PARSE the goal</div>
+          <div class="fs"><code>"16-node HyperPod EKS p5en, NCCL test"</code> &rarr;
+            {instance_type, node_count, workload, gates}.</div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box agent">
+          <div class="ft">2 &middot; SYNTHESIZE the plan</div>
+          <div class="fs">Resolve catalog modules, order by dependency
+            (vpc &rarr; eks &rarr; cluster &rarr; efa-validate &rarr; workload), and
+            <strong>validate every emitted manifest against the instance-type DB</strong>
+            &mdash; the B200 8-vs-16 EFA-NIC trap is caught <em>here</em>, before any apply.</div>
+        </div>
+        <div class="flow-arrow">&darr; &nbsp; ordered modules</div>
+        <div class="flow-box tool">
+          <div class="ft">3 &middot; EMPIRICAL LADDER (per module)</div>
+          <div class="fs">apply &rarr; observe output &rarr; <strong>classify the failure</strong>
+            (52-pattern regex table) &rarr; rank by severity (BLOCK &gt; DROP &gt; DEGRADE &gt; WARN,
+            deterministic id tie-break) &rarr; <strong>dispatch the codified fix</strong> &rarr;
+            retry &le; N. Every attempt's log signature + matched instinct is recorded.</div>
+        </div>
+        <div class="flow-arrow">&darr; &nbsp; on success</div>
+        <div class="flow-box repo">
+          <div class="ft">4 &middot; AUDIT + LEARN</div>
+          <div class="fs">A redacted audit trail per run; a new failure&rarr;fix that wasn't
+            in the corpus becomes a mined candidate for the meta-learner. The loop
+            feeds the store that feeds the loop.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <strong>Determinism is the safety property.</strong> The same log signature
+      always ranks to the same fix &mdash; no coin-flip between equal-severity matches,
+      so no wasted retry. A <span class="badge block">BLOCK</span> severity (e.g. EFA
+      device absent) stops the run rather than reporting a meaningless number. Hard
+      guardrails (anything that could be unsafe) get exactly one attempt, never a retry loop.
+    </div>
+  </div>
+</section>
+
+<!-- ---- POC bring-up ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">From ask to POC</p>
+    <h2>Standing up a proof-of-concept, autonomously</h2>
+    <p class="lead">
+      The end-to-end story a solution architect cares about: a customer asks for a
+      capability; the agent scopes it, finds capacity, stands up the infrastructure,
+      validates the fabric, runs the workload, and hands back a report &mdash; with a
+      human gate on anything that spends money or mutates a cluster.</p>
+
+    <div class="grid cols-3" style="margin-top:1.5rem">
+      <div class="card">
+        <span class="tag">1 &middot; scope &amp; size</span>
+        <h3>Understand the ask</h3>
+        <p>The conversational layer slot-fills the requirement (model, workload,
+          scale, region, deadline) and calls the deterministic sizing tool for a
+          directional footprint, parallelism, and cost.</p>
+      </div>
+      <div class="card">
+        <span class="tag">2 &middot; capacity</span>
+        <h3>Find the hardware</h3>
+        <p>Read-only discovery of EC2 Capacity Block / FTP offerings &mdash; the right
+          instance type, region, and duration. Purchase stays behind the human-gated
+          spend firewall.</p>
+      </div>
+      <div class="card">
+        <span class="tag">3 &middot; provision</span>
+        <h3>Stand up the cluster <span class="badge gated">gated</span></h3>
+        <p>Synthesize the bring-up plan (VPC &rarr; EKS &rarr; HyperPod &rarr; nodegroup),
+          apply through the empirical ladder, self-healing known failures as it goes.</p>
+      </div>
+      <div class="card">
+        <span class="tag">4 &middot; validate fabric</span>
+        <h3>Prove the network is real</h3>
+        <p>Run an unprivileged NCCL test; the classifier confirms RDMA is active and
+          NCCL didn't silently fall back to TCP &mdash; so the number means something.</p>
+      </div>
+      <div class="card">
+        <span class="tag">5 &middot; run the workload</span>
+        <h3>Deploy the POC</h3>
+        <p>Deploy the training / inference / disagg workload onto the validated
+          cluster &mdash; the same manifests the catalog modules emit.</p>
+      </div>
+      <div class="card">
+        <span class="tag">6 &middot; report &amp; tear down</span>
+        <h3>Hand back proof</h3>
+        <p>An executive summary backed by a reproducible technical artifact (config +
+          commit + image digest). Scale to zero and release capacity when done.</p>
+      </div>
+    </div>
+    <div class="callout">
+      <strong>Where the gate sits.</strong> Steps 1, 2, 4, 6 are read-only or
+      reversible and run autonomously. Steps 3 and 5 mutate real infrastructure and
+      cost money &mdash; they execute only under the live-cluster gate, and a capacity
+      <em>purchase</em> additionally requires the 3-factor firewall the agent cannot
+      satisfy on its own. <a href="capabilities.html">See the firewall &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- ---- the conversational layer ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The agent talks back</p>
+    <h2>Answers from a corpus, not a hunch</h2>
+    <p class="lead">
+      The customer-facing surface is conversational, but it is structurally
+      constrained: it can only return what a deterministic tool or the corpus gave it.
+      It is incapable of inventing a benchmark number or a formula.</p>
+
+    <div class="grid cols-2" style="margin-top:1.25rem">
+      <div class="card">
+        <span class="tag">customer asks</span>
+        <pre>"Will a 70B model fit on two
+ p5 nodes for fine-tuning, and
+ how is HyperPod billed?"</pre>
+      </div>
+      <div class="card">
+        <span class="tag">agent answers &mdash; grounded</span>
+        <p style="margin:.1rem 0"><strong>Sizing</strong> &rarr; calls
+          <code>size_cluster</code>: directional footprint exceeds two nodes'
+          usable VRAM &rarr; <span class="badge degr">over</span>, suggests more nodes
+          or quantization. <em>(labeled directional, not a benchmark.)</em></p>
+        <p style="margin:.6rem 0 0"><strong>Billing</strong> &rarr; calls
+          <code>ask_hyperpod</code>: returns the curated KB answer with a
+          do / do-not / depends tier, <strong>a source, and a confidence</strong>
+          &mdash; or says "not in corpus" rather than guessing.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>The contract.</strong> Every quantitative claim the agent makes is
+      tagged at the source: <strong>"validated benchmark"</strong> (backed by a
+      PR-gated repo entry with provenance) or <strong>"directional estimate"</strong>
+      (from the public-spec calculator). If the corpus doesn't cover the question,
+      the honest answer is "I don't have that" &mdash; which is itself a feature.
+    </div>
+  </div>
+</section>
+
+<!-- ---- cta ---- -->
+<section>
+  <div class="wrap" style="text-align:center">
+    <h2>Go deeper</h2>
+    <p class="lead" style="margin:0 auto 1.5rem">
+      The full component specs, APIs, and the v2 roadmap live in the design doc.
+    </p>
+    <div class="cta" style="justify-content:center">
+      <a class="btn primary" href="architecture.html">See the architecture</a>
+      <a class="btn" href="DESIGN.md">Read the design doc</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; solution-architect deep dive.</div>
+    <div class="note">
+      Public showcase, no sensitive data. Layer statuses (implemented / partial /
+      aspirational) reflect the real framework, not marketing. Mutating steps
+      (provision, deploy, purchase) are human-gated. Full detail in the
+      <a href="DESIGN.md">design doc</a>.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
