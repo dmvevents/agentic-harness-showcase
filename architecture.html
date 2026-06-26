@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture — agentic-harness</title>
+<meta name="description" content="The Tool / Agent / Repo / Portal architecture and AWS-ecosystem integration story for agentic-harness.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="architecture.html" class="active">Architecture</a>
+    <a href="calculator.html">Calculator</a>
+    <a href="DESIGN.md">Design doc</a>
+  </div>
+</nav>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Architecture</p>
+    <h2>Tool, Agent, Repo, Portal</h2>
+    <p class="lead">
+      Four layers with one trust boundary. The deterministic tool and the
+      version-controlled repo are the source of truth; the agent orchestrates;
+      the portal presents. The public tier never touches sensitive data.
+    </p>
+
+    <!-- ---- the layered flow ---- -->
+    <div class="diagram" style="margin-top:1.5rem">
+      <div class="flow-stack">
+        <div class="flow-box">
+          <div class="ft">PORTAL &mdash; presentation</div>
+          <div class="fs">Public tier (this static site): landing, directional calculator, this page.
+            &nbsp;|&nbsp; Restricted tier <span class="badge v2">planned&nbsp;v2</span>: auth + RBAC + audit, catalog browse, report download.</div>
+        </div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box agent">
+          <div class="ft">AGENT &mdash; conversational orchestrator</div>
+          <div class="fs">Slot-fills inputs, asks follow-ups, routes to a tool function, formats the
+            structured result. <strong>Never invents a formula or a benchmark number. Cannot mutate.</strong></div>
+        </div>
+        <div class="flow-arrow">&darr; &nbsp; structured call</div>
+        <div class="flow-box tool">
+          <div class="ft">TOOL &mdash; deterministic functions</div>
+          <div class="fs">discover_capacity &middot; classify_failure &middot; plan_cluster &middot; ask_hyperpod &middot;
+            taxonomy &middot; size_cluster. &nbsp;Same input &rarr; same output. The failure classifier is a
+            compiled regex table, not a prompt.</div>
+        </div>
+        <div class="flow-arrow">&darr; &nbsp; reads from</div>
+        <div class="flow-box repo">
+          <div class="ft">REPO &mdash; single source of truth (git, PR-gated)</div>
+          <div class="fs">316 instincts &middot; 52 detect&rarr;fix patterns &middot; 30 Q&amp;A entries &middot;
+            <span class="badge v2">v2</span> benchmark entries (config + results + provenance + validation status).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <strong>The boundary that matters.</strong> The agent surface
+      <em>advises</em>: plan, classify, discover, answer. Spending money
+      (capacity purchase) and mutating a cluster (fix execution) stay
+      <em>in-process</em>, behind a human gate &mdash; never exposed on the public
+      MCP/agent surface. A build-failing test enforces that no mutating verb is
+      ever added to the MCP tool catalog.
+    </div>
+  </div>
+</section>
+
+<!-- ---- the deterministic tool functions ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The Tool</p>
+    <h2>Deterministic functions: structured in, structured out</h2>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Function</th><th>Does</th><th>Mutating?</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>discover_capacity</code></td><td>read-only list of EC2 Capacity Block / FTP offerings</td><td>no</td><td><span class="badge ship">shipped</span></td></tr>
+        <tr><td><code>classify_failure</code></td><td>log text &rarr; instinct id + severity + codified fix (compiled regex table)</td><td>no</td><td><span class="badge ship">shipped</span></td></tr>
+        <tr><td><code>plan_cluster</code></td><td>goal sentence &rarr; ordered module plan; catches the B200 8-vs-16 EFA-NIC trap at plan time</td><td>no</td><td><span class="badge ship">shipped</span></td></tr>
+        <tr><td><code>ask_hyperpod</code></td><td>question &rarr; curated KB answer with do/do-not/depends + source + confidence</td><td>no</td><td><span class="badge ship">shipped</span></td></tr>
+        <tr><td><code>taxonomy</code></td><td>live corpus inventory by kind / layer / substrate / workload</td><td>no</td><td><span class="badge ship">shipped</span></td></tr>
+        <tr><td><code>size_cluster</code></td><td>directional sizing + cost (the public calculator)</td><td>no (pure)</td><td><span class="badge ship">shipped</span></td></tr>
+        <tr><td><code>query_benchmark</code></td><td>config selector &rarr; matching real benchmark entries from the repo</td><td>no</td><td><span class="badge v2">planned v2</span></td></tr>
+        <tr><td><code>purchase_capacity</code></td><td>buy an offering &mdash; 3-factor firewall, in-process only</td><td><strong>yes</strong></td><td><span class="badge warn2">never on public MCP</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---- benchmark schema ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The Repo <span class="badge v2">planned v2</span></p>
+    <h2>Every benchmark carries its provenance</h2>
+    <p>A benchmark number with no commit, no image digest, and no validation status
+      is a rumor. Each entry is one PR-contributed JSON document, gated by a CI
+      validation check before merge.</p>
+    <pre style="margin-top:1rem"><span class="c">// benchmarks/&lt;id&gt;.json  — one real run, PR-gated</span>
+{
+  <span class="k">"config"</span>: { <span class="s">"model"</span>: "llama-3-8b", <span class="s">"workload"</span>: "inference",
+              <span class="s">"gpu_type"</span>: "H100", <span class="s">"instance_type"</span>: "p5.48xlarge",
+              <span class="s">"gpus_total"</span>: 16, <span class="s">"parallelism"</span>: {"tp":8,"pp":1,"dp":2},
+              <span class="s">"precision"</span>: "bf16", <span class="s">"framework"</span>: "vllm" },
+  <span class="k">"results"</span>: { <span class="s">"metric"</span>: "tokens_per_sec", <span class="s">"value"</span>: 0.0, <span class="s">"unit"</span>: "tok/s" },
+  <span class="k">"provenance"</span>: { <span class="s">"commit"</span>: "&lt;sha&gt;", <span class="s">"image_digest"</span>: "sha256:...",
+                  <span class="s">"command"</span>: "redacted-safe", <span class="s">"audit_ref"</span>: ".claude-sessions/&lt;run&gt;/" },
+  <span class="k">"validation"</span>: { <span class="s">"status"</span>: "validated", <span class="s">"validator"</span>: "&lt;reviewer&gt;",
+                  <span class="s">"gates_passed"</span>: ["fabric-active","no-tcp-fallback","reproduced-2x"] }
+}</pre>
+    <div class="callout">
+      <strong>Separation of authoring and approval.</strong> A contributor cannot
+      self-validate their own benchmark entry &mdash; the same two-pass discipline
+      the harness already uses for instincts. The CI gate also runs a sensitive-data
+      linter (no customer names, no account ids, no internal hostnames) before merge.
+    </div>
+  </div>
+</section>
+
+<!-- ---- integrations ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Integrations</p>
+    <h2>Into the AWS agent ecosystem &mdash; both directions</h2>
+
+    <div class="diagram" style="margin:1.25rem 0">
+<pre>
+ INBOUND  ──▶  cluster-ops-mcp (read-only server)  ◀──  Q Developer CLI
+ (they call us)                                          Bedrock AgentCore Gateway
+                                                         Quick Suite (desktop)
+
+ OUTBOUND ──▶  cluster_ops.mcp.client  ──▶  awslabs MCP servers:
+ (we call AWS)                               aws-api · eks · cloudwatch ·
+                                             pricing · aws-knowledge
+</pre>
+    </div>
+
+    <table>
+      <thead><tr><th>Integration</th><th>Direction</th><th>What</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>MCP server (<code>cluster-ops-mcp</code>)</td><td>inbound</td><td>others call our read-only tools over JSON-RPC stdio</td><td><span class="badge ship">shipped</span></td></tr>
+        <tr><td>MCP client</td><td>outbound</td><td>we call the 5 awslabs servers; restrictable to read-only verbs</td><td><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Amazon Q Developer</td><td>inbound</td><td>headless CLI wrap (<code>q chat --no-interactive</code>) with our mcp.json</td><td><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Bedrock AgentCore</td><td>inbound</td><td>Gateway re-hosts our MCP tools; needs remote HTTP transport</td><td><span class="badge v2">transport v2</span></td></tr>
+        <tr><td>Quick Suite</td><td>inbound</td><td>desktop registers our stdio server; cloud needs remote HTTPS + OAuth</td><td><span class="badge warn2">partial</span></td></tr>
+        <tr><td>Slack</td><td>both</td><td>live bridge for consolidated status relay + command routing</td><td><span class="badge ship">shipped</span></td></tr>
+        <tr><td>S3 report storage</td><td>outbound</td><td>persist exec + technical report artifacts, signed download</td><td><span class="badge v2">planned v2</span></td></tr>
+        <tr><td>Salesforce / opportunity tie-in</td><td>outbound</td><td>attach a generated report to an opportunity</td><td><span class="badge v2">planned v2</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---- reporting pipeline ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Reporting</p>
+    <h2>Two artifacts from one structured result</h2>
+    <div class="grid cols-2" style="margin-top:1.25rem">
+      <div class="card">
+        <span class="tag">customer-safe</span>
+        <h3>Executive summary</h3>
+        <p>Prose, no internal pricing or account ids. Every quantitative claim is
+          labeled either <strong>"validated benchmark"</strong> (backed by a repo
+          entry) or <strong>"directional estimate"</strong> (from the public-spec
+          calculator).</p>
+      </div>
+      <div class="card">
+        <span class="tag">reproducibility backing</span>
+        <h3>Technical artifact</h3>
+        <p>The exact config, commit, image digest, and command, so a third party
+          can re-run it and get the same number. The proof behind the summary.</p>
+      </div>
+    </div>
+    <div class="callout">
+      MVP renders both inline (Markdown/HTML). v2 persists them to S3 with a signed
+      download link and writes an audit record.
+    </div>
+  </div>
+</section>
+
+<!-- ---- vs reference ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Why this is broader</p>
+    <h2>Beyond a single-purpose calculator</h2>
+    <p>We keep the best property of a client-side calculator &mdash; deterministic,
+      no backend to misconfigure &mdash; and go broader on every axis.</p>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Axis</th><th>A single-purpose calculator</th><th>This portal</th></tr></thead>
+      <tbody>
+        <tr><td>Scope</td><td>one calculation</td><td>sizing + capacity + failure classification + plan synthesis + Q&amp;A</td></tr>
+        <tr><td>Failure-awareness</td><td>none</td><td>52 compiled detect&rarr;fix patterns</td></tr>
+        <tr><td>Capacity-awareness</td><td>none</td><td>live read-only Capacity Block / FTP discovery</td></tr>
+        <tr><td>Reproducibility</td><td>a number on a page</td><td>commit + image digest + validation status per benchmark</td></tr>
+        <tr><td>Hallucination control</td><td>implicit</td><td>explicit contract: agent never emits a number a tool didn't return</td></tr>
+        <tr><td>Integration</td><td>standalone page</td><td>MCP server (inbound) + MCP client (outbound)</td></tr>
+        <tr><td>Honesty</td><td>unlabeled estimates</td><td>every number labeled "directional" or "validated benchmark"</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; architecture &amp; integration story.</div>
+    <div class="note">
+      Public showcase, no sensitive data. The restricted portal tier (auth, RBAC,
+      audit) is described here as planned &mdash; it is not built or exposed in this pass.
+      Full detail in the <a href="DESIGN.md">design doc</a>.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

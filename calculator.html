@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPU cluster sizing calculator — agentic-harness (directional)</title>
+<meta name="description" content="A deterministic, client-side GPU-cluster sizing and cost calculator. Directional public-spec estimates only — not a benchmark.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="calculator.html" class="active">Calculator</a>
+    <a href="DESIGN.md">Design doc</a>
+  </div>
+</nav>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Deterministic tool — public demo</p>
+    <h2>GPU cluster sizing &amp; cost calculator</h2>
+    <p class="lead">
+      A pure, client-side calculator: same inputs always produce the same output,
+      with no backend and no network calls. This is the public embodiment of the
+      "deterministic tool" pattern.
+    </p>
+
+    <div class="callout warn">
+      <strong>Directional, not a benchmark.</strong> Every number on this page is a
+      <em>directional, public-spec estimate</em> computed from published vendor
+      specs and public list prices. It is <strong>not</strong> a measured benchmark,
+      a quote, or negotiated pricing. Real benchmark numbers live in a PR-gated repo
+      with full provenance and a validation status &mdash; none of those appear here.
+    </div>
+
+    <div class="calc-grid">
+      <!-- ---- inputs ---- -->
+      <form class="calc-form" onsubmit="return false">
+        <div class="field">
+          <label for="params">Model size <span class="hint">(billion parameters)</span></label>
+          <input type="number" id="params" value="8" min="0.1" step="0.1">
+        </div>
+        <div class="field">
+          <label for="workload">Workload</label>
+          <select id="workload">
+            <option value="inference">Inference (serving)</option>
+            <option value="finetune">Fine-tune</option>
+            <option value="train">Train (full, mixed-precision)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="gpu">GPU type</label>
+          <select id="gpu">
+            <option value="H100">H100 — p5.48xlarge (80 GB)</option>
+            <option value="H200">H200 — p5en.48xlarge (141 GB)</option>
+            <option value="B200">B200 — p6-b200.48xlarge (192 GB)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="instances">Instance count <span class="hint">(8 GPUs each)</span></label>
+          <input type="number" id="instances" value="2" min="1" step="1">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label for="precision">Weight precision</label>
+          <select id="precision">
+            <option value="bf16">BF16 (2 bytes)</option>
+            <option value="fp16">FP16 (2 bytes)</option>
+            <option value="fp8">FP8 (1 byte)</option>
+            <option value="int8">INT8 (1 byte)</option>
+          </select>
+        </div>
+      </form>
+
+      <!-- ---- outputs ---- -->
+      <div class="result-panel">
+        <div id="verdict" class="verdict fit">&hellip;</div>
+        <div id="results"></div>
+        <p id="par-note" style="font-size:.85rem; color:var(--text-mute); margin:.9rem 0 0"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- how the numbers are derived (transparency) ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">How the math works</p>
+    <h2>Every formula is public and labeled directional</h2>
+    <p>No hidden model, no fitted curve from private data. These are coarse public
+      heuristics, written out so you can audit them in
+      <code>assets/calculator.js</code> (all pure functions).</p>
+
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Output</th><th>Directional formula (public heuristic)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Total GPUs</td>
+          <td><code>instances &times; 8</code> (P-family nodes have 8 GPUs each)</td>
+        </tr>
+        <tr>
+          <td>Aggregate VRAM</td>
+          <td><code>total_GPUs &times; vram_per_gpu</code> (H100 = 80&nbsp;GB, H200 = 141&nbsp;GB, B200 = 192&nbsp;GB)</td>
+        </tr>
+        <tr>
+          <td>Model footprint (inference)</td>
+          <td><code>params_B &times; bytes_per_param &times; 1.25</code> &mdash; weights + a flat 25% KV-cache/activation working set</td>
+        </tr>
+        <tr>
+          <td>Model footprint (train / fine-tune)</td>
+          <td><code>params_B &times; 16</code> &mdash; the classic ~16 bytes/param Adam mixed-precision rule of thumb</td>
+        </tr>
+        <tr>
+          <td>Memory-fit verdict</td>
+          <td>compare footprint to <code>aggregate_VRAM &times; 0.85</code> (a usable-fraction haircut for fragmentation/overhead)</td>
+        </tr>
+        <tr>
+          <td>Parallelism (TP/PP/DP)</td>
+          <td>TP up to 8 (one NVLink domain) &middot; PP across nodes only if one node can't hold the footprint &middot; DP fills the rest</td>
+        </tr>
+        <tr>
+          <td>On-demand cost</td>
+          <td><code>instance_list_price &times; instances</code> &mdash; public list price, excludes storage / egress / discounts</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>Want a real number?</strong> This calculator sizes and estimates.
+      For a <em>measured</em> result &mdash; throughput, latency, NCCL bandwidth on a
+      specific config &mdash; the design calls for a PR-gated benchmark repo where
+      each entry carries its exact commit, container image digest, command, and a
+      human validation status. That is the source of truth; this page is the
+      directional front door. <a href="architecture.html">See the design &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; directional sizing calculator.</div>
+    <div class="note">
+      All figures are directional public-spec estimates, not benchmarks or quotes.
+      Pure client-side JavaScript &mdash; no backend, no network calls, no data leaves your browser.
+    </div>
+  </div>
+</footer>
+
+<script src="assets/calculator.js"></script>
+</body>
+</html>

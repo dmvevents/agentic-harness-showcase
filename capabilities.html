@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capabilities — agentic-harness</title>
+<meta name="description" content="What the agentic-harness agent can do: the three lanes, the deterministic failure classifier, capacity discovery, the safety firewall, and AWS-ecosystem integration — with honest shipped / planned / gated status.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="capabilities.html" class="active">Capabilities</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="calculator.html">Calculator</a>
+    <a href="DESIGN.md">Design doc</a>
+  </div>
+</nav>
+
+<!-- ---- header ---- -->
+<header class="hero">
+  <div class="wrap">
+    <span class="tagline">what it can actually do &mdash; and what it deliberately won't</span>
+    <h1>Capabilities</h1>
+    <p class="lead">
+      Every capability below is tagged with an honest status:
+      <span class="badge ship">shipped</span> works today,
+      <span class="badge v2">planned&nbsp;v2</span> is designed but not built,
+      <span class="badge gated">gated</span> is wired but held behind a human gate or booked capacity, and
+      <span class="badge warn2">partial</span> works one way but not yet another.
+      No capability here is aspirational marketing &mdash; if it isn't shipped, it says so.
+    </p>
+  </div>
+</header>
+
+<!-- ---- the three lanes, expanded ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Core capabilities</p>
+    <h2>Three lanes, in depth</h2>
+    <p class="lead" style="margin-bottom:2rem">
+      The agent exposes exactly three verbs. Each routes to deterministic tool
+      functions &mdash; the language model fills slots and formats output, it never
+      computes the answer.
+    </p>
+
+    <div class="grid cols-3">
+      <div class="card">
+        <div class="lane verb">ask</div>
+        <h3>Knowledge Q&amp;A <span class="badge ship">shipped</span></h3>
+        <p>Routes a HyperPod / EKS / EFA question to a curated, version-controlled
+          knowledge base. Returns a <strong>do / do-not / depends</strong> answer
+          with a source citation and a confidence &mdash; never an unsourced guess.</p>
+        <ul class="feat">
+          <li>30-entry HyperPod Q&amp;A KB, PR-gated</li>
+          <li>answers carry a source + confidence</li>
+          <li>refuses rather than hallucinates when off-corpus</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="lane verb">capacity</div>
+        <h3>Capacity discovery <span class="badge ship">shipped</span></h3>
+        <p>Read-only discovery of EC2 Capacity Block and SageMaker Flexible Training
+          Plan offerings &mdash; instance type, count, region, duration, price, start
+          window. The same call our team uses to answer real "can we get N GPUs by
+          DATE" asks.</p>
+        <ul class="feat">
+          <li>EC2 Capacity Blocks (no allowlist)</li>
+          <li>FTP offerings (allowlist-gated path detected + reported)</li>
+          <li>multi-region, multi-instance sweep</li>
+          <li>purchase is <strong>separate</strong> &mdash; see the firewall below</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="lane verb">orchestrate</div>
+        <h3>Plan &amp; remediate <span class="badge gated">gated</span></h3>
+        <p>A goal sentence becomes an ordered module plan, then the empirical ladder:
+          apply &rarr; observe &rarr; classify the failure &rarr; match an instinct
+          &rarr; dispatch the codified fix &rarr; retry. Plan synthesis catches
+          hardware traps <em>before</em> any apply.</p>
+        <ul class="feat">
+          <li>plan synthesis: <span class="badge ship">shipped</span></li>
+          <li><code>stage</code> dry-run mode: <span class="badge ship">shipped</span></li>
+          <li>live multi-node bring-up: <span class="badge gated">gated on booked capacity</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- master capability matrix ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The full matrix</p>
+    <h2>Every capability, with status</h2>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Capability</th><th>What it does</th><th>Mutating?</th><th class="cap-cell">Status</th></tr></thead>
+      <tbody>
+        <tr><td>Knowledge Q&amp;A (<code>ask</code>)</td><td>curated KB answer + source + confidence</td><td>no</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Failure classification</td><td>log text &rarr; instinct + severity + fix (52 compiled patterns)</td><td>no</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Capacity discovery</td><td>read-only Capacity Block / FTP offering search</td><td>no</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Plan synthesis</td><td>goal &rarr; ordered module plan; catches HW traps at plan time</td><td>no</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Corpus taxonomy</td><td>live inventory by kind / layer / substrate / workload</td><td>no</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Directional sizing &amp; cost</td><td>the public calculator: memory fit, parallelism, est. cost</td><td>no (pure)</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Stage / dry-run orchestration</td><td>render the plan + preflight without applying</td><td>no</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Empirical-ladder remediation</td><td>apply &rarr; observe &rarr; classify &rarr; fix &rarr; retry, with audit</td><td><strong>yes</strong></td><td class="cap-cell"><span class="badge gated">gated</span></td></tr>
+        <tr><td>Live multi-node GPU bring-up</td><td>HyperPod EKS + p5/p5en nodegroup, NCCL validation</td><td><strong>yes</strong></td><td class="cap-cell"><span class="badge gated">gated on capacity</span></td></tr>
+        <tr><td>Capacity purchase</td><td>buy an offering &mdash; non-refundable</td><td><strong>yes</strong></td><td class="cap-cell"><span class="badge warn2">human-gated, in-process only</span></td></tr>
+        <tr><td>Benchmark retrieval</td><td>config selector &rarr; real validated runs from the repo</td><td>no</td><td class="cap-cell"><span class="badge v2">planned v2</span></td></tr>
+        <tr><td>Report &rarr; S3 + signed download</td><td>persist exec + technical artifacts</td><td>no</td><td class="cap-cell"><span class="badge v2">planned v2</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---- deterministic failure classifier ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The differentiator</p>
+    <h2>A failure classifier, not a chatbot</h2>
+    <p class="lead">
+      Paste a log signature; get the same instinct, the same severity, and the same
+      codified fix every time. 52 compiled patterns, no model in the loop. Severity
+      decides whether a benchmark number is even trustworthy.
+    </p>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th class="cap-cell">Severity</th><th>Meaning</th><th class="cap-cell">Patterns</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td class="cap-cell"><span class="badge block">BLOCK</span></td><td>run is invalid &mdash; stop, the result is meaningless</td><td class="cap-cell">10</td><td>EFA device not present; IAM denies the action</td></tr>
+        <tr><td class="cap-cell"><span class="badge drop">DROP</span></td><td>silent correctness loss &mdash; packets / collectives failing</td><td class="cap-cell">17</td><td>SRD on a secondary CIDR being silently dropped</td></tr>
+        <tr><td class="cap-cell"><span class="badge degr">DEGRADE</span></td><td>works but slow &mdash; the number understates real capability</td><td class="cap-cell">18</td><td>NCCL fell back to TCP sockets; bandwidth is bogus</td></tr>
+        <tr><td class="cap-cell"><span class="badge warn2">WARN</span></td><td>worth noting, not fatal</td><td class="cap-cell">7</td><td>suboptimal NCCL algo / protocol selection</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>Why severity matters for a benchmark portal.</strong> A bandwidth
+      number captured while NCCL was silently on TCP (<span class="badge degr">DEGRADE</span>)
+      isn't slow &mdash; it's <em>wrong</em>. The classifier flags that before the
+      number ever reaches a customer report.
+    </div>
+  </div>
+</section>
+
+<!-- ---- safety firewall ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">What it deliberately will not do</p>
+    <h2>The capabilities behind a human gate</h2>
+    <p>The most important capability is a <em>refusal</em>. Spending money and mutating
+      a cluster are deliberately not autonomous.</p>
+    <div class="grid cols-2" style="margin-top:1.25rem">
+      <div class="card">
+        <span class="tag">spend firewall</span>
+        <h3>Cannot buy capacity on its own</h3>
+        <p>A capacity purchase is non-refundable, so it sits behind a
+          <strong>3-factor gate</strong> the agent cannot satisfy from its own outputs:</p>
+        <ul class="feat">
+          <li><code>CLUSTER_OPS_PROD=1</code> &mdash; the live-cluster env gate</li>
+          <li><code>--confirm</code> must equal the exact offering id</li>
+          <li>an out-of-band <code>CLUSTER_OPS_PURCHASE_TOKEN</code> a human sets &mdash; never emitted by any tool, so the agent has nothing to copy</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="tag">non-mutating surface</span>
+        <h3>Cannot mutate over the public MCP</h3>
+        <p>The inbound MCP server exposes only read-only verbs (ask, classify, plan,
+          discover, taxonomy). The mutating verbs (purchase, fix-execute) live
+          in-process, never on the MCP catalog.</p>
+        <ul class="feat">
+          <li>enforced by a <strong>build-failing test</strong>, not a convention</li>
+          <li>add a <code>purchase</code> verb to the MCP catalog &rarr; CI goes red</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ---- integration capabilities ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Ecosystem capabilities</p>
+    <h2>Both directions of the AWS agent ecosystem</h2>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Integration</th><th>Direction</th><th>What</th><th class="cap-cell">Status</th></tr></thead>
+      <tbody>
+        <tr><td>MCP server (<code>cluster-ops-mcp</code>)</td><td>inbound</td><td>6 read-only tools over JSON-RPC stdio</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>MCP client</td><td>outbound</td><td>calls the 5 awslabs servers, read-only-restrictable</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Amazon Q Developer</td><td>inbound</td><td>headless CLI wrap with our mcp.json</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Slack</td><td>both</td><td>status relay + command routing bridge</td><td class="cap-cell"><span class="badge ship">shipped</span></td></tr>
+        <tr><td>Bedrock AgentCore</td><td>inbound</td><td>Gateway re-hosts our MCP tools</td><td class="cap-cell"><span class="badge v2">needs HTTP transport</span></td></tr>
+        <tr><td>Quick Suite</td><td>inbound</td><td>desktop registers stdio; cloud needs remote HTTPS+OAuth</td><td class="cap-cell"><span class="badge warn2">partial</span></td></tr>
+        <tr><td>S3 / Salesforce report tie-in</td><td>outbound</td><td>persist + attach reports to an opportunity</td><td class="cap-cell"><span class="badge v2">planned v2</span></td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      The 6 inbound MCP tools are exactly the read-only capabilities above:
+      <code>ask_hyperpod</code>, <code>classify_failure</code>, <code>plan_cluster</code>,
+      <code>discover_capacity</code>, <code>list_failure_signatures</code>,
+      <code>taxonomy</code>. <a href="architecture.html">See the integration diagram &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- ---- cta ---- -->
+<section>
+  <div class="wrap" style="text-align:center">
+    <h2>See it work</h2>
+    <p class="lead" style="margin:0 auto 1.5rem">
+      Try the deterministic sizing calculator, or read how the layers fit together.
+    </p>
+    <div class="cta" style="justify-content:center">
+      <a class="btn primary" href="calculator.html">Try the calculator</a>
+      <a class="btn" href="architecture.html">Read the architecture</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; capability surface, honestly tagged.</div>
+    <div class="note">
+      Public showcase, no sensitive data. Status badges reflect what is shipped vs.
+      planned vs. gated as of this pass. Mutating capabilities (purchase, fix-execute,
+      live bring-up) are human-gated and never exposed on the public MCP surface.
+      Full detail in the <a href="DESIGN.md">design doc</a>.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

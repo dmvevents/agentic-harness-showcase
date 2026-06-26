@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agentic-harness — deterministic tool, agent-orchestrated, repo-backed</title>
+<meta name="description" content="An autonomous agent for AWS GPU cluster operations: a deterministic tool wrapped by a conversational agent, backed by a version-controlled corpus. Same input, same output — no hallucination.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html" class="active">Overview</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="calculator.html">Calculator</a>
+    <a href="DESIGN.md">Design doc</a>
+  </div>
+</nav>
+
+<!-- ------------------------------------------------------------ hero -->
+<header class="hero">
+  <div class="wrap">
+    <span class="tagline">one Slack message &rarr; 90-minute autonomous HyperPod EKS bring-up</span>
+    <h1>A deterministic tool,<br>orchestrated by an agent,<br>backed by a repo.</h1>
+    <p class="lead">
+      <strong>agentic-harness</strong> is an autonomous agent for AWS GPU cluster
+      operations. The hard part isn't the chat &mdash; it's that every number and
+      every fix comes from a <em>deterministic tool</em> and a
+      <em>version-controlled corpus</em>, not from a language model guessing.
+      Same input, same output. No hallucinated benchmark numbers.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="calculator.html">Try the sizing calculator</a>
+      <a class="btn" href="architecture.html">See how it fits together</a>
+    </div>
+  </div>
+</header>
+
+<!-- ------------------------------------------------------------ the pattern -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The pattern</p>
+    <h2>Tool &middot; Agent &middot; Repo</h2>
+    <p class="lead" style="margin-bottom:2rem">
+      Three layers, one boundary: the language model never invents a formula or
+      a benchmark number. It collects inputs, routes to a deterministic function,
+      and formats the structured result.
+    </p>
+    <div class="grid cols-3">
+      <div class="card lane">
+        <span class="tag">deterministic</span>
+        <h3>The Tool</h3>
+        <p>
+          Pure, structured functions: capacity discovery, failure classification,
+          plan synthesis, sizing math. A compiled 52-pattern regex table &mdash;
+          not a prompt &mdash; maps a log signature to a codified fix. Same input
+          &rarr; byte-identical output.
+        </p>
+      </div>
+      <div class="card lane">
+        <span class="tag">conversational</span>
+        <h3>The Agent</h3>
+        <p>
+          A slot-filling orchestrator. It asks follow-up questions, picks the
+          right tool function, passes structured arguments, and renders the result
+          into prose. It <strong>cannot</strong> emit a number a tool didn't return,
+          and it cannot mutate a cluster or spend money.
+        </p>
+      </div>
+      <div class="card lane">
+        <span class="tag">source of truth</span>
+        <h3>The Repo</h3>
+        <p>
+          One git repository: 316 atomic instincts, 52 detect&rarr;fix patterns,
+          a 30-entry HyperPod Q&amp;A KB &mdash; and (v2) real benchmark runs, each
+          carrying its commit, image digest, and validation status. PR-gated.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ stats -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">What it knows</p>
+    <h2>A corpus, not a vibe</h2>
+    <div class="grid cols-4" style="margin-top:1.5rem">
+      <div class="card stat"><div class="num">316</div><div class="label">canonical instincts</div></div>
+      <div class="card stat"><div class="num">52</div><div class="label">compiled detect&rarr;fix patterns</div></div>
+      <div class="card stat"><div class="num">30</div><div class="label">HyperPod Q&amp;A entries</div></div>
+      <div class="card stat"><div class="num">100<span class="unit">%</span></div><div class="label">retrievable &middot; actionable &middot; attributed</div></div>
+    </div>
+    <div class="callout">
+      <strong>Coverage, not count.</strong> Raw instinct count is a vanity metric.
+      Every instinct is retrievable (by phase or layer), actionable (has a positive
+      and negative example), and attributed (has a source). That floor never lowers
+      &mdash; it's enforced by a test and a pre-commit hook.
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ the 3 lanes -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The interface</p>
+    <h2>Three lanes: ask &middot; capacity &middot; orchestrate</h2>
+    <div class="grid cols-3" style="margin-top:1.5rem">
+      <div class="card">
+        <div class="lane verb">ask</div>
+        <h3>Answer</h3>
+        <p>Route a HyperPod question to the curated KB. Returns the answer with
+          do / do-not / depends tiers, a source, and a confidence &mdash; never an
+          unsourced guess.</p>
+        <pre><span class="k">cluster-ops ask</span> <span class="s">"how is hyperpod billed"</span></pre>
+      </div>
+      <div class="card">
+        <div class="lane verb">capacity</div>
+        <h3>Provision</h3>
+        <p>Read-only discovery of EC2 Capacity Block / Flexible Training Plan
+          offerings. Purchase is non-refundable and sits behind a 3-factor spend
+          firewall the agent cannot satisfy alone.</p>
+        <pre><span class="k">cluster-ops capacity discover</span> \
+  <span class="k">--instance-type</span> p5.48xlarge <span class="k">--count</span> 2</pre>
+      </div>
+      <div class="card">
+        <div class="lane verb">orchestrate</div>
+        <h3>Fix</h3>
+        <p>Goal sentence &rarr; ordered module plan &rarr; the empirical ladder:
+          apply, observe, classify the failure, match an instinct, dispatch the
+          fix, retry. Catches hardware traps at <em>plan</em> time.</p>
+        <pre><span class="k">cluster-ops orchestrate</span> \
+  <span class="s">"2-node HyperPod EKS p5en, NCCL test"</span> \
+  <span class="k">--mode</span> stage</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ advise vs execute -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The differentiator</p>
+    <h2>Platforms advise. This agent executes &mdash; safely.</h2>
+    <p class="lead">
+      Diagnostic <em>advice</em> is becoming a commodity. The value is
+      provable, account-specific remediation <em>reliability</em>: detect a known
+      failure signature, match a codified fix, run it with an audit trail and a
+      spend firewall.
+    </p>
+    <table style="margin-top:1.5rem">
+      <thead><tr><th>Today (SA-led)</th><th>With this agent</th></tr></thead>
+      <tbody>
+        <tr><td>Cold-start: ~2 weeks of back-and-forth</td><td>One Slack message + a ~90-minute run</td></tr>
+        <tr><td>Tribal knowledge in engineers' heads</td><td>316 instincts, version-controlled</td></tr>
+        <tr><td>Config mistakes caught after the cluster is up</td><td>Caught at <strong>synthesis time</strong>, before any apply</td></tr>
+        <tr><td>No audit trail unless someone writes one</td><td>Audit trail by default, secrets redacted</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ failure classifier -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Deterministic, by example</p>
+    <h2>Paste a log line, get a codified fix</h2>
+    <p>The failure classifier is a compiled regex table. The same log always maps
+      to the same instinct, the same severity, and the same fix. No model in the loop.</p>
+    <div class="grid cols-2" style="margin-top:1.25rem">
+      <div class="card">
+        <span class="tag">input &mdash; a log signature</span>
+        <pre>NCCL INFO NET/Socket : Using
+  [0]eth0 ; busbw 11 GB/s</pre>
+      </div>
+      <div class="card">
+        <span class="tag">output &mdash; structured, deterministic</span>
+        <p style="margin:0 0 .5rem"><span class="badge degr">DEGRADE</span> &nbsp; instinct <code>K0014</code></p>
+        <p style="margin:.2rem 0"><strong>NCCL fell back to TCP/sockets</strong> &mdash; the fabric path is inactive, so the bandwidth number is meaningless.</p>
+        <p style="margin:.5rem 0 0; font-size:.88rem"><strong>fix:</strong> verify the EFA device plugin is advertising and the pod requests <code>vpc.amazonaws.com/efa</code>; without these NCCL silently uses TCP.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ integrations -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Ecosystem</p>
+    <h2>It plugs into the AWS agent ecosystem &mdash; both directions</h2>
+    <div class="grid cols-2" style="margin-top:1.5rem">
+      <div class="card">
+        <span class="tag">inbound &mdash; others call us</span>
+        <h3>MCP server</h3>
+        <p>Ships an MCP server (<code>cluster-ops-mcp</code>) so Amazon Q Developer,
+          Bedrock AgentCore, and Quick Suite can call our tools. The surface is
+          <strong>structurally non-mutating</strong> &mdash; a test fails the build
+          if a <code>purchase</code> or <code>execute</code> verb is ever added.</p>
+      </div>
+      <div class="card">
+        <span class="tag">outbound &mdash; we call AWS</span>
+        <h3>MCP client</h3>
+        <p>A full MCP client into the awslabs servers: <code>aws-api</code>,
+          <code>eks</code>, <code>cloudwatch</code>, <code>pricing</code>, and
+          <code>aws-knowledge</code> &mdash; each restrictable to read-only verbs.</p>
+      </div>
+    </div>
+    <div class="callout warn">
+      <strong>Safety boundary.</strong> The conversational/agent surface advises:
+      plan, classify, discover, answer. Spending money and mutating a cluster stay
+      behind a 3-factor firewall and a human gate, in-process &mdash; never on the
+      public MCP surface. <a href="architecture.html">See the architecture &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ honesty -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Honesty guardrails</p>
+    <h2>What this site does <em>not</em> claim</h2>
+    <ul style="color:var(--text-dim); max-width:70ch; line-height:1.8">
+      <li>The public calculator gives <strong>directional, public-spec estimates only</strong> &mdash; clearly labeled. It is not a benchmark.</li>
+      <li>Real benchmark numbers live in a PR-gated repo behind a validation gate. They carry a commit, an image digest, and a validation status. None appear on this public site.</li>
+      <li>Live multi-node GPU bring-up is wired and reachable, gated on booked capacity &mdash; not claimed as run-end-to-end here.</li>
+      <li>The benchmark catalog, restricted portal (auth + RBAC + audit), and S3 report storage are <span class="badge v2">planned&nbsp;v2</span>, described in the <a href="DESIGN.md">design doc</a>.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <strong style="color:var(--text-dim)">agentic-harness</strong> &mdash;
+      autonomous agent for AWS GPU cluster operations.
+    </div>
+    <div class="note">
+      Public showcase &middot; first-pass &middot; no sensitive data.
+      All numbers shown are public-spec or directional estimates. Apache-2.0.
+      Preview locally with <code>python3 -m http.server</code> in <code>site/</code>.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
