@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HyperPod FAQ — agentic-harness</title>
+<meta name="description" content="How HyperPod, FTP, capacity, billing, resilience, and EFA networking actually work — 30 Q&A entries mined from real Slack discussions and operations, each with a do / do-not / depends answer.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="value.html">Value</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="knowledge.html">Knowledge bank</a>
+    <a href="faq.html" class="active">HyperPod FAQ</a>
+    <a href="deep-dive.html">Deep dive</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="calculator.html">Calculator</a>
+    <a href="benchmarks.html">Benchmarks</a>
+    <a href="design.html">Design</a>
+  </div>
+</nav>
+<header class="hero">
+  <div class="wrap">
+    <span class="tagline">how things actually work &middot; 30 answers from real operations</span>
+    <h1>HyperPod FAQ &amp;<br>knowledge base.</h1>
+    <p class="lead">
+      These 30 answers were mined from real Slack discussions and
+      operational experience, then curated into the agent's knowledge base &mdash;
+      the same corpus the <code>ask</code> lane queries. Each carries a
+      <strong>do / do-not / depends</strong> answer and a confidence. Customer,
+      account, and handle specifics are removed.
+    </p>
+  </div>
+</header>
+<section><div class="wrap">
+  <p class="eyebrow">Browse by topic</p>
+  <h2>9 topics, 30 answers</h2>
+  <div class="cta" style="flex-wrap:wrap;gap:.5rem;margin-top:1rem"><a class="btn" href="#ftp">Flexible Training Plans (FTP) (5)</a> <a class="btn" href="#capacity">Capacity &amp; reservations (3)</a> <a class="btn" href="#billing">Billing &amp; cost (5)</a> <a class="btn" href="#orchestration">Orchestration &amp; bring-up (4)</a> <a class="btn" href="#resilience">Resilience &amp; recovery (4)</a> <a class="btn" href="#networking">Networking &amp; EFA (1)</a> <a class="btn" href="#inference">Inference (3)</a> <a class="btn" href="#task_governance">Task governance (2)</a> <a class="btn" href="#general">General (3)</a></div>
+</div></section>
+<section id="ftp"><div class="wrap">
+  <p class="eyebrow">Flexible Training Plans (FTP)</p>
+  <h2>5 answers</h2>
+  <div style="margin-top:1.25rem"><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">What is the best practice when a Flexible Training Plan (FTP) expires mid-training?</h3>
+        <p>Checkpoint aggressively and plan the run to finish inside the reserved window; an FTP is a fixed-term capacity reservation that does not auto-extend or auto-fall-back to on-demand. When the plan ends, instances are reclaimed, so resume from the last checkpoint on a fresh reservation (a new FTP, a Capacity Block, or on-demand if available).</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Size the FTP to cover the full training duration plus buffer, and use HyperPod auto-checkpointing so a fresh reservation can resume from the latest checkpoint.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming the cluster will silently keep running or auto-switch to on-demand when the plan expires — capacity is reclaimed and the cluster can enter an Updating/RollingBack loop.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> It depends on capacity at expiry: a replacement FTP or Capacity Block in the same AZ may not be available, so on-demand may be the only (and scarcest) fallback for P5/P5en.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-hyperpod-interest &middot; conf 0.75</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Can a customer extend a Flexible Training Plan once it has started?</h3>
+        <p>No — an FTP is a fixed-term, all-upfront capacity reservation and cannot be extended after it starts. To continue past the end date you purchase a new plan (search-training-plan-offerings → create-training-plan) for the additional period.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Plan total duration up front, or buy a second overlapping/back-to-back FTP before the first expires to avoid a capacity gap.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Believing you can add weeks to a running plan the way you bump an on-demand instance — extension is not supported.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> The follow-on plan&#x27;s availability depends on capacity at purchase time and is AZ/region-locked, so a contiguous block may not exist.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:hyperpod-gtm &middot; conf 0.8</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Can a HyperPod Flexible Training Plan be moved between AWS regions (e.g. us-east-1 to us-east-2)?</h3>
+        <p>No — FTP/HyperPod reserved capacity is region- and AZ-locked and cannot be migrated. To switch regions you terminate the existing reservation and purchase a new plan in the target region, then move data and re-create the cluster setup there.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Purchase a fresh plan in the target region and re-run the cluster/lifecycle setup; only the data and configuration need to be copied over.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Expecting AWS to transfer an existing committed plan from one region to another — instances cannot be migrated between regions.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Whether you can re-use prior setup depends on what&#x27;s region-scoped: lifecycle scripts and IaC are portable, but the capacity commitment itself must be re-purchased and subject to target-region availability.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:smai-slb-lumi-hyperpod-fm-training &middot; conf 0.78</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Why does FTP search return &#x27;Internal account is not allowlisted to search training plan offerings&#x27;?</h3>
+        <p>FTP offering search (search-training-plan-offerings) is allowlist-gated on internal/isengard accounts via a feature flag (the LooseLeaf/#ask-looseleaf gate). Customer accounts that already hold an FTP are not gated; the allowlist applies to internal accounts trying to search offerings.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> For an internal/isengard test account, request the SearchTrainingPlanOfferings allowlist via #ask-looseleaf with account ID and regions.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Concluding there is no capacity or the API is broken — the error is an account-allowlist gate, not a capacity or permissions bug.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Real customer accounts holding an FTP have no gate, so this only blocks internal testing flows; verify which account type you&#x27;re on before filing tickets.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:W017LN9AK99 &middot; conf 0.78</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Can a Flexible Training Plan be shared with or transferred to another AWS account?</h3>
+        <p>Cross-account sharing of FTP is not the same as EC2 Capacity Block sharing and should not be assumed — verify in current docs. The robust path for moving a workload to a new account is typically to re-purchase/re-provision in the target account.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Confirm the supported sharing model in current docs; if unsupported, provision the plan in the account that will own the workload.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming FTP shares exactly like Capacity Block sharing because they use the same underlying capacity — the sharing/RAM semantics differ.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Depends on the current feature set; Capacity Block sharing exists, but FTP sharing support has lagged and may differ by region/release.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-interest &middot; conf 0.6</span>
+      </div></div>
+</div></section>
+<section id="capacity"><div class="wrap">
+  <p class="eyebrow">Capacity &amp; reservations</p>
+  <h2>3 answers</h2>
+  <div style="margin-top:1.25rem"><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">What is the relationship between FTP and EC2 Capacity Blocks, and when use which?</h3>
+        <p>FTP &#x27;uses capacityBlocks under the hood&#x27; — same underlying hardware reservation model. EC2 Capacity Blocks are the non-allowlisted, self-service path to the same GPUs (purchase-capacity-block), useful when the internal FTP search is gated or for self-hosted/EC2-native workloads.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Use FTP when you want SageMaker/HyperPod-managed capacity with PPA line-item eligibility; use EC2 Capacity Blocks for self-hosted inference/EC2-native workloads or when FTP search is allowlist-gated.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Treating FTP and Capacity Blocks as fundamentally different hardware pools — they reserve the same underlying capacity.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Capacity Blocks have a 24h minimum and are AZ-locked, max ~6 months (no 12-month commit); for 12-month reservations use an ODCR instead, and credits generally can&#x27;t be applied to all-upfront CB/FTP without a pre-processing step.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:ec2-capacity-blocks-interest &middot; conf 0.74</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Can a customer mix Capacity Block and Flexible Training Plan capacity in one HyperPod cluster?</h3>
+        <p>This is not a supported, guaranteed mix-and-match in a single cluster&#x27;s instance group out of the box — capacity sources are reserved and AZ-scoped separately. Treat each reservation as its own capacity pool and verify current support before designing around it.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Provision separate instance groups/clusters per reservation source and keep each within its own AZ, rather than assuming one cluster transparently pools CB + FTP.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming you can freely blend a Capacity Block and an FTP into one instance group like fungible on-demand capacity.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Support evolves — confirm against current HyperPod docs/service team, since flexible instance groups and continuous provisioning have been expanding what a single cluster can combine.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-hyperpod-interest &middot; conf 0.6</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Why does &#x27;insufficient capacity&#x27; appear even with an active FTP that has available capacity?</h3>
+        <p>An active FTP guarantees a reservation but instances still launch via EC2 RunInstances into a specific AZ/subnet; a capacity error usually means a subnet/AZ mismatch or transient EC2 capacity at launch. Ensure the cluster subnet is in the same AZ as the FTP reservation.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Use a subnet in the exact AZ of the FTP reservation (the purchase warning calls this out) so RunInstances draws from the reserved pool.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming an active plan means instances launch from any subnet/AZ in the VPC — the reservation is AZ-pinned.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> If the AZ matches and capacity still fails, it may be a genuine EC2 shortfall needing escalation to the EC2 team rather than a config issue.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:ec2-capacity-blocks-interest &middot; conf 0.72</span>
+      </div></div>
+</div></section>
+<section id="billing"><div class="wrap">
+  <p class="eyebrow">Billing &amp; cost</p>
+  <h2>5 answers</h2>
+  <div style="margin-top:1.25rem"><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Does FTP/HyperPod spend count toward a SageMaker PPA and is it discounted by the PPA/EDP?</h3>
+        <p>FTP spend counts toward PPA attainment and is eligible for cross-service (EDP) discounts only if the private offer has a Flexible Training Plan line item with the specific instance type priced. Without that line item, the consumption is not covered.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Add an explicit &#x27;SageMaker HyperPod Flexible Training Plan instances&#x27; line item (with instance type) to the private offer so the spend both attains and is discounted by the PPA.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming all SageMaker consumption is automatically PPA-eligible — FTP needs the explicit line item, which is why the wiki reads &#x27;yes and no at the same time&#x27;.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Discount stacking order matters: a Savings Plan reduces the on-demand rate first, then the cross-service/EDP discount applies to the already-discounted amount.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:ai-ml-sales-specialists-emea &middot; conf 0.72</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Are SageMaker HyperPod / FTP / Reserved Instances eligible for MAP 2.0 credits?</h3>
+        <p>MAP 2.0 explicitly excludes &#x27;SageMaker training plans for training jobs or HyperPod clusters&#x27;, so FTP/training-plan spend does not earn MAP credits. HyperPod Reserved Instance (RI) spend, by contrast, is eligible to earn MAP 2.0 credits.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Position HyperPod Reserved Instances (not training plans) when the customer needs the spend to earn MAP 2.0 credits.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Treating all SageMaker spend as MAP-eligible because &#x27;SageMaker is included&#x27; — the training-plan/HyperPod-cluster carve-out overrides the general inclusion.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Earned MAP credits (MAP 2.0 or MAP PPA) cannot be spent on future RIs, and Nova/Bedrock model usage has its own eligibility — confirm the specific SKU against current MAP docs.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:mapcast &middot; conf 0.72</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">How does HyperPod usage show up in billing — as EC2 or as SageMaker?</h3>
+        <p>HyperPod launches EC2 (on-demand/reserved, non-spot) instances via EC2 RunInstances and emits SageMaker HyperPod metering records (REMO). The charge surfaces as SageMaker HyperPod usage, not raw EC2, and does not include connected services like EKS, FSx for Lustre, or S3.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> For EDP/commitment planning, treat HyperPod compute as SageMaker HyperPod line items and budget EKS/FSx/S3 separately as their own charges.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming HyperPod compute bills as plain EC2, or that the HyperPod price covers attached EKS/FSx/S3.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Both EC2 (e.g. spot) and HyperPod metering line items can appear when the service account launches the instance; exact surfacing depends on how the cluster/metering is configured.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-hyperpod-interest &middot; conf 0.72</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">What&#x27;s the best way to get cost savings for HyperPod inference beyond SageMaker Savings Plans?</h3>
+        <p>SageMaker Savings Plans give the headline discount (~64% off on-demand); beyond that, use reserved capacity (FTP-for-inference or Capacity Blocks/RIs) for guaranteed GPUs at committed rates, and right-size with task governance idle-sharing to raise utilization.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Combine a Savings Plan with reserved inference capacity and high cluster utilization (idle resource sharing) to lower effective $/GPU-hour.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming Savings Plans are the only lever — leaving GPUs underutilized erases the discount&#x27;s benefit.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Discount stacking has an order (Savings Plan first, then EDP/cross-service), and not all instance types (e.g. some G5 configs) are supported by every plan — verify per instance type.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-interest &middot; conf 0.65</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Does HyperPod pricing cover the connected services (EKS, FSx for Lustre, S3) a cluster uses?</h3>
+        <p>No — HyperPod pricing covers the cluster compute only and explicitly does not include charges for connected services such as Amazon EKS, FSx for Lustre, or S3. Those are billed separately under their own service line items.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Budget EKS control-plane, FSx for Lustre, and S3 as separate line items on top of HyperPod compute when modeling total cost.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming the HyperPod per-hour price is all-in and covers storage/orchestration dependencies.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Which connected services apply depends on the architecture (Slurm vs. EKS, FSx vs. S3-only); a minimal setup may incur few extras while a production one adds AMP, ALBs, etc.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-hyperpod-interest &middot; conf 0.78</span>
+      </div></div>
+</div></section>
+<section id="orchestration"><div class="wrap">
+  <p class="eyebrow">Orchestration &amp; bring-up</p>
+  <h2>4 answers</h2>
+  <div style="margin-top:1.25rem"><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Should a customer choose EKS or Slurm orchestration for HyperPod custom model training?</h3>
+        <p>Both EKS and Slurm are fully supported and the choice is largely team preference — Slurm for HPC-comfortable teams, EKS for Kubernetes-native MLOps. HyperPod supports both for training and inference.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Pick the orchestrator the team already knows: Slurm if they prefer classic HPC scheduling, EKS if they want K8s-native pipelines and inference co-location.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming EKS is the only option for fully custom training, or that the two have identical feature sets.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Feature parity is not guaranteed — historically EKS received new features ahead of Slurm (e.g. continuous provisioning, custom AMI), so check which features you need on each path.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-bootcamp-h1-emea-2026 &middot; conf 0.78</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Can HyperPod Slurm clusters specify a minimum capacity requirement?</h3>
+        <p>Yes — HyperPod Slurm clusters with continuous provisioning support specifying minimum capacity requirements, so the cluster won&#x27;t proceed/scale until at least the minimum healthy nodes are available, then continuously maintains that capacity.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Set a minimum capacity requirement with continuous provisioning so the cluster only becomes usable once the minimum node count is healthy.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming a cluster always launches with exactly the requested node count regardless of capacity — continuous provisioning fills toward the target over time.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> This is tied to continuous provisioning mode; clusters created without it behave differently, and the minimum-capacity option for Slurm rolled out after EKS.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:aws-whats-new-gen-ai-summary &middot; conf 0.68</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Why can&#x27;t a customer provision HyperPod EKS on Kubernetes 1.35 even though the AMI was released?</h3>
+        <p>AMI availability is necessary but not sufficient — the HyperPod API and Terraform/IaC providers must also support the version. If the API and providers don&#x27;t yet support 1.35, the version is effectively unprovisionable until they&#x27;re updated, regardless of AMI release.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Confirm API + Terraform provider support (not just AMI release) before promising a new K8s version; until then provision the latest fully supported version (e.g. 1.34).</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Treating an AMI release note as proof a K8s version is usable end-to-end.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> EKS 1.35 also requires Continuous provisioning mode; timeline for API/provider support is WIP and should be verified with the service team.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-hyperpod-interest &middot; conf 0.72</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Among AWS managed Slurm options (ParallelCluster, PCS, HyperPod-Slurm), which fits large GenAI training?</h3>
+        <p>For large-scale distributed GenAI training (1000+ GPU clusters) with resilience needs, HyperPod-Slurm is the purpose-built choice — its core value is automatic fault tolerance (auto node replacement, auto-resume, deep health checks, checkpointless training). ParallelCluster/PCS are classic HPC orchestration without HyperPod&#x27;s managed resiliency.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Position HyperPod-Slurm for resilient large-scale model training; reserve ParallelCluster/PCS for traditional HPC where managed GPU fault tolerance isn&#x27;t the differentiator.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Treating the three as interchangeable — the lines blur on scheduling, but only HyperPod brings managed GPU resiliency for long training runs.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> PCS is adding GenAI-oriented features (e.g. deep health checks), so the boundary is narrowing; pick based on the customer&#x27;s resiliency and managed-service requirements.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:W0186GK0RCG &middot; conf 0.68</span>
+      </div></div>
+</div></section>
+<section id="resilience"><div class="wrap">
+  <p class="eyebrow">Resilience &amp; recovery</p>
+  <h2>4 answers</h2>
+  <div style="margin-top:1.25rem"><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">How does HyperPod handle a failed GPU/node during training?</h3>
+        <p>HyperPod runs automatic instance replacement: the health-monitoring agent continuously checks node/GPU health (labeling fault-types) and, combined with auto-resume and auto-checkpoint, replaces faulty nodes and resumes training without manual intervention.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Rely on the health-monitoring agent + auto-resume/auto-checkpoint so a detected faulty GPU triggers automatic node replacement and training resumes from checkpoint.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Using trouble-ticket counts as the source of truth for node failures — HyperPod replaces instances automatically, so tickets undercount real fault events.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> If replacement stalls it&#x27;s often an EC2 capacity shortage (no healthy node to swap in), which needs EC2 escalation rather than a resilience-agent fix.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:luma-hyperpod-poc &middot; conf 0.8</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Do EKS/HyperPod node health checks catch GPU-level faults like hung ranks or NCCL deadlocks?</h3>
+        <p>No — EKS and HyperPod node/health checks operate at the node level and cannot see in-process GPU faults such as hung ranks, straggler GPUs, or NCCL deadlocks. Sub-process fault detection needs a tool like NVIDIA Resiliency Extension (NVRx) with fast heartbeat/straggler detection.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Layer NVRx (or equivalent) on top of HyperPod auto-resume to get sub-5-second heartbeat/straggler detection for in-process GPU faults.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming node-level health checks and kubelet probes are sufficient to detect a hung rank or NCCL deadlock inside the training process.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> HyperPod auto-resume handles node/hardware faults well; the gap is specifically intra-process GPU faults, so the extra tooling only matters for long multi-node runs sensitive to stragglers.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:mpdm-pgt--rangasun--shubkumb--chakravn--iankouls--mvincig--antonai-1 &middot; conf 0.75</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">What is HyperPod&#x27;s core value proposition for distributed training?</h3>
+        <p>HyperPod is a managed resilient cluster: it auto-checkpoints, auto-resumes, and automatically replaces faulty nodes on instability or crashes, so long multi-node training survives hardware faults with minimal lost work. Resiliency — not raw provisioning — is the differentiator.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Lead with resiliency (auto node replacement + auto-resume + checkpointing, plus checkpointless/elastic training) when justifying HyperPod over self-managed clusters.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Pitching HyperPod purely as a way to get GPUs — that undersells the managed fault tolerance that&#x27;s the actual value.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Resilience covers node/hardware faults automatically; in-process GPU faults (hung ranks, stragglers) still need add-on tooling like NVRx, and replacement can stall on EC2 capacity shortages.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:azercell-llm-project &middot; conf 0.78</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">What does the HyperPod &#x27;health monitoring agent&#x27; do and which orchestrators support it?</h3>
+        <p>The HyperPod health monitoring agent runs continuous health checks on cluster instances, automatically detecting faulty hardware (e.g. bad GPUs) and triggering node replacement. It&#x27;s GA for both EKS and Slurm-orchestrated clusters, and is complemented by on-demand deep health checks.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Enable the health monitoring agent on Slurm or EKS clusters and use on-demand deep health checks to proactively verify GPU health on running instances before a big run.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming automated health monitoring is EKS-only — it reached GA for Slurm clusters as well.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> The agent acts at the node/hardware level; pair it with deep health checks for proactive GPU verification and with in-process tooling for rank-level faults.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:aws-whats-new-kr &middot; conf 0.72</span>
+      </div></div>
+</div></section>
+<section id="networking"><div class="wrap">
+  <p class="eyebrow">Networking &amp; EFA</p>
+  <h2>1 answer</h2>
+  <div style="margin-top:1.25rem"><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">What does HyperPod support for EFA-only network interfaces mean, and how many can an instance have?</h3>
+        <p>HyperPod now supports EFA-only network interfaces (no traditional ENI/ElasticNetworkInterface) per instance group, dedicating network cards to RDMA. The per-instance EFA count is bounded by the instance&#x27;s network cards — you can assign only one EFA or EFA-only interface per network card.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Use EFA-only interfaces on instances with many network cards (e.g. P6-B200 has 8) to dedicate each card to an EFA device for max RDMA bandwidth.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming you can attach unlimited EFA devices — the limit is one EFA/EFA-only interface per network card.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Limits differ by instance: on P5/P5e each ENI supports MaximumNetworkInterfaces of 2 (device indices 0 and 1 only), and the primary interface already uses DI=0; for EFA-only the per-card rule dominates.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:efa-interest &middot; conf 0.72</span>
+      </div></div>
+</div></section>
+<section id="inference"><div class="wrap">
+  <p class="eyebrow">Inference</p>
+  <h2>3 answers</h2>
+  <div style="margin-top:1.25rem"><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Does FTP capacity support inference endpoints, not just training?</h3>
+        <p>Yes — since the Nov 2025 launch, Flexible Training Plans support inference endpoints, giving guaranteed GPU capacity for planned evaluations and production peaks. You reference the FTP reservation when creating the endpoint so it draws from reserved capacity.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Reserve FTP capacity sized for the inference peak and point the endpoint at the plan to get guaranteed GPUs instead of competing for on-demand.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming FTP is training-only; older docs/mental models predate the inference support and lead people to buy separate on-demand capacity.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Detailed configuration docs are thin — verify the current API/flow in docs, since the exact way to attach the FTP ARN to an endpoint has changed across releases.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-interest &middot; conf 0.7</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">What&#x27;s the difference between InferenceEndpointConfig and JumpStartModel in the HyperPod managed inference operator?</h3>
+        <p>InferenceEndpointConfig deploys cluster-native models and draws from the cluster-usage quota, while JumpStartModel deploys JumpStart models and draws from an endpoint-usage quota that defaults to 0. A new JumpStart deployment commonly fails until that endpoint-usage quota is raised.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> For JumpStart-based endpoints, request an endpoint-usage quota increase first (default 0); use InferenceEndpointConfig for cluster-native models on cluster-usage quota.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Deploying a JumpStartModel and assuming it will schedule on the default quota — endpoint-usage quota of 0 blocks it.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Accounts with a low C-score (&lt;300) need a quota-increase ticket regardless of path; the right CRD depends on whether the model is cluster-native or from JumpStart.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:aiml-infra-interest &middot; conf 0.7</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">How do I create a SageMaker inference endpoint using FTP-reserved capacity?</h3>
+        <p>Reference the FTP reservation when creating the endpoint so it draws from the guaranteed FTP-for-inference capacity rather than competing for on-demand. The exact mechanism (e.g. supplying the plan ARN in the endpoint config) should be confirmed against current docs, since detailed guidance is sparse.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Create the endpoint against the FTP-reserved capacity (per the Nov 2025 FTP-for-inference launch) to get guaranteed GPUs for evaluations/production peaks.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Spinning up an on-demand endpoint and hitting InsufficientInstanceCapacity when the customer already holds FTP-for-inference capacity they could have used.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Configuration docs are thin and the flow has changed across releases — verify the current API path before committing a customer to it.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-interest &middot; conf 0.62</span>
+      </div></div>
+</div></section>
+<section id="task_governance"><div class="wrap">
+  <p class="eyebrow">Task governance</p>
+  <h2>2 answers</h2>
+  <div style="margin-top:1.25rem"><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">What does HyperPod task governance use to enforce compute quotas and scheduling?</h3>
+        <p>HyperPod task governance is built on Kueue for fine-grained compute/memory quota allocation, gang scheduling, cluster policies, and idle resource sharing (borrowing unused quota). Pods awaiting admission/topology gates show as SchedulingGated until the gates lift.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Use task governance fine-grained quotas plus idle resource sharing so teams can borrow unallocated capacity beyond their guaranteed quota when the cluster is idle.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Reading a SchedulingGated pod as a failure — it&#x27;s Kueue holding the pod until admission/topology gates clear, which is expected behavior.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Gang scheduling and borrowing depend on cluster policy configuration; if no quotas/policy are set, behavior differs from a fully governed cluster.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:ask-hyperpod &middot; conf 0.75</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Why can&#x27;t I delete a HyperPod cluster — it&#x27;s blocked by task governance policies?</h3>
+        <p>Task-governance admission/quota objects can block cluster deletion. The fix is to remove the governing resources (compute quotas, cluster policy, Kueue objects) first, or address the admission webhook, then delete. A cluster reporting governance blocks may still need the governance add-on/CRDs cleaned up even if no quotas appear set.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Drain/clear task-governance quotas and policies (and any lingering webhook/CRD) before issuing the cluster delete.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming a cluster &#x27;without task governance installed&#x27; can&#x27;t be governance-blocked — residual CRDs/webhooks can still hold the delete.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> The exact blocking object varies (compute quota vs. cluster policy vs. admission webhook); inspect each before forcing deletion.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-hyperpod-interest &middot; conf 0.65</span>
+      </div></div>
+</div></section>
+<section id="general"><div class="wrap">
+  <p class="eyebrow">General</p>
+  <h2>3 answers</h2>
+  <div style="margin-top:1.25rem"><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Is custom AMI supported for HyperPod, and on both Slurm and EKS?</h3>
+        <p>Custom AMI is supported for HyperPod EKS but only with Continuous Scaling/provisioning mode enabled. Custom AMI support for HyperPod Slurm has lagged and may not be available — verify in current docs.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> For a custom AMI on HyperPod EKS, create the cluster with continuous provisioning mode enabled (now the recommended default for EKS).</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming the EKS custom-AMI blog applies equally to Slurm, or that custom AMI works without continuous provisioning.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> The HyperPod AMI is built on DLAMI (which itself bases on public EKS AMIs); &#x27;Public AMI releases&#x27; vs. Slurm/EKS AMI releases differ, and CMK/encryption scope-down to a specific instance group has known limitations.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:hyperpod-gtm &middot; conf 0.7</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">Does a HyperPod cluster support multiple instance groups / instance types?</h3>
+        <p>Yes — HyperPod supports multiple instance groups, and flexible instance groups (launched Apr 2026) expand mixing of instance types within a cluster. Different groups can serve training vs. inference or different GPU generations.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Use separate (or flexible) instance groups to run mixed instance types or to dedicate groups to training vs. inference within one cluster.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Assuming a cluster is locked to a single instance type, or that a RIG (restricted instance group) supports arbitrary multiple types out of the gate.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> Support for multiple/flexible instance types is a relatively recent capability; older clusters or modes may not have it, so verify the cluster&#x27;s provisioning mode and release.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:agi-nova-forge-for-1p-users &middot; conf 0.68</span>
+      </div><div class="card kb-instinct" style="margin-bottom:1rem">
+        <h3 style="margin-top:0">What is the smallest viable HyperPod cluster, and what blocks add-ons like observability from installing?</h3>
+        <p>You need at least one healthy node before installing add-ons such as the HyperPod observability add-on, and the node must be large enough to fit the add-on&#x27;s pods. Add-on install failures on small/empty clusters are usually insufficient node capacity to schedule the collector pods.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--green)">&#10003; do:</span> Provision at least one sufficiently large node first, then install the observability/OTel add-on so its collector pods can schedule.</p>
+        <p style="margin:.4rem 0"><span class="neg">&#10007; not:</span> Installing cluster add-ons against an empty or too-small cluster and reading the scheduling failure as a broken add-on.</p>
+        <p style="margin:.4rem 0"><span style="color:var(--accent-2)">&#9878; depends:</span> On very large clusters (800+ nodes) the opposite problem appears — add-on deploys can time out from high metric volume to AMP, needing tuning rather than more capacity.</p>
+        <span style="opacity:.6;font-size:.8rem">src: slack:sagemaker-cerebrus-dev &middot; conf 0.65</span>
+      </div></div>
+</div></section>
+<section><div class="wrap">
+  <div class="callout"><strong>This is the <code>ask</code> lane, made browsable.</strong>
+  The agent answers the same questions programmatically — routing a natural-language
+  question to this curated KB and returning the matching do/do-not/depends answer with
+  its source and confidence, never an unsourced guess. <a href="capabilities.html">See the lanes &rarr;</a></div>
+</div></section>
+<footer><div class="wrap">
+  <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; HyperPod FAQ &middot; updated 2026-06-26.</div>
+  <div class="note">Public showcase, no sensitive data. Answers mined from real Slack/operations;
+  customer names, account ids, IPs, and @handles removed. Confidence reflects source strength, not a guarantee.</div>
+</div></footer>
+</body></html>
