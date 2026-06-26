@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap to GA — agentic-harness</title>
+<meta name="description" content="The product roadmap and OKRs to take agentic-harness / cluster_ops from v0.2.4 to GA (v1.0.0): realized knowledge → live proof → capacity assistant → GA. Grounded in real current state.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span><span class="full">agentic-harness</span></a>
+  <div class="links">
+    <a href="index.html">Overview</a>
+    <a href="value.html">Value</a>
+    <a href="roadmap.html" class="active">Roadmap</a>
+    <a href="capabilities.html">Capabilities</a>
+    <a href="knowledge.html">Knowledge bank</a>
+    <a href="faq.html">HyperPod FAQ</a>
+    <a href="deep-dive.html">Deep dive</a>
+    <a href="benchmarks.html">Benchmarks</a>
+    <a href="design.html">Design</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="tagline">product roadmap &amp; OKRs &middot; updated 2026-06-26</span>
+    <h1>The road to GA.</h1>
+    <p class="lead">
+      From <strong>v0.2.4</strong> today to <strong>v1.0.0 / GA</strong> &mdash; an
+      honest, evidence-gated plan. GA isn't declared; it's earned by a reproduced
+      <em>live</em> cluster bring-up, a knowledge loop that's actually closed, and
+      real benchmark data &mdash; with every claim sourced and every spend human-gated.
+    </p>
+  </div>
+</header>
+
+<!-- ---- where we are ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The baseline</p>
+    <h2>Where we are today (v0.2.4)</h2>
+    <div class="grid cols-4" style="margin-top:1.5rem">
+      <div class="card stat"><div class="num">946</div><div class="label">tests passing</div></div>
+      <div class="card stat"><div class="num">9<span class="unit">/12</span></div><div class="label">optimization layers implemented</div></div>
+      <div class="card stat"><div class="num">316</div><div class="label">canonical instincts (100% coverage)</div></div>
+      <div class="card stat"><div class="num">3</div><div class="label">lanes shipped: ask · capacity · orchestrate</div></div>
+    </div>
+    <div class="callout warn">
+      <strong>What "not yet GA" honestly means.</strong> The live multi-node
+      bring-up (<code>--mode prod</code>) has never run end-to-end (capacity-gated);
+      the benchmark repo holds 0 real measured runs yet; and 10,000+ mined learnings
+      are still in the review lane, not promoted to canonical. GA closes exactly
+      these gaps &mdash; with proof, not claims.
+    </div>
+  </div>
+</section>
+
+<!-- ---- GA definition ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The bar</p>
+    <h2>What GA means</h2>
+    <div class="callout">
+      <strong>cluster_ops is GA when an unfamiliar operator can, from one goal
+      sentence, autonomously and safely bring up + validate a real multi-node
+      HyperPod EKS GPU cluster, get a provenance-backed report, and tear it down
+      &mdash; with every claim sourced and every spend/mutation human-gated &mdash;
+      reproducibly, twice.</strong>
+    </div>
+    <p style="color:var(--text-dim);font-size:.9rem;margin-top:1rem">
+      Deferred to post-GA (by design): the restricted-portal auth tier (SSO/RBAC),
+      full inference-catalog depth, and Salesforce/opportunity integration.</p>
+  </div>
+</section>
+
+<!-- ---- release ladder ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The release ladder</p>
+    <h2>v0.2.4 &rarr; v1.0.0</h2>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>Release</th><th>Theme</th><th>What ships</th><th class="cap-cell">Capacity?</th></tr></thead>
+      <tbody>
+        <tr><td><code>v0.2.4</code></td><td>Foundation <span class="badge ship">here now</span></td><td>lanes, portal skeleton, site, mining, safety gates</td><td class="cap-cell">&mdash;</td></tr>
+        <tr><td><code>v0.3.0</code></td><td>Realized knowledge</td><td>promotion pipeline + scrub canonical + seed real benchmarks</td><td class="cap-cell">no</td></tr>
+        <tr><td><code>v0.4.0</code></td><td>Live proof</td><td>one real <code>--mode prod</code> bring-up, reproduced</td><td class="cap-cell"><span class="badge gated">yes</span></td></tr>
+        <tr><td><code>v0.5.0</code></td><td>Capacity assistant</td><td>flexibility analysis + request-shaping (FTP/ODCR/CB)</td><td class="cap-cell">no</td></tr>
+        <tr><td><code>v1.0.0</code></td><td>GA</td><td>operator runbook + hardening + the reproduced proof</td><td class="cap-cell"><span class="badge gated">yes</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---- the GA OKRs ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The OKRs</p>
+    <h2>Objective G: reach GA</h2>
+    <p class="lead">Five key results, each with a functional, a testing, and a
+      proof acceptance criterion. GA = all five green + the live run reproduced twice.</p>
+    <table style="margin-top:1.25rem">
+      <thead><tr><th>KR</th><th>What it proves</th><th>Acceptance</th></tr></thead>
+      <tbody>
+        <tr><td><strong>G-KR1</strong> Live proof</td><td>a real ≥2-node HyperPod EKS bring-up + EFA validation + teardown, twice</td><td>complete audit dir; NCCL within noise floor; counters increment; reproduced</td></tr>
+        <tr><td><strong>G-KR2</strong> Realized knowledge</td><td>the mining loop is closed; canonical grows under the ratchet; contaminated entries scrubbed</td><td>a human-approved batch promoted; ratchet 100/100/100; canonical scan clean</td></tr>
+        <tr><td><strong>G-KR3</strong> Real benchmarks</td><td>repo seeded with ≥3 validated, customer-safe measured runs</td><td>artifacts reach <code>published</code>; a provenance-backed report renders</td></tr>
+        <tr><td><strong>G-KR4</strong> Capacity assistant</td><td>rigidity scoring + CB/ODCR/FTP alternatives + request-shaping</td><td>a rigid request yields ≥2 scored alternatives + tradeoffs</td></tr>
+        <tr><td><strong>G-KR5</strong> Hardened &amp; safe</td><td>zero open Sev-1; a fresh operator completes a run from the manual alone</td><td>all safety gates green; witnessed operator run</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---- next action ---- -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Immediate next step</p>
+    <h2>Close the loop before mining more</h2>
+    <div class="callout">
+      The highest-value next action needs no capacity: <strong>promote a curated
+      batch of the highest-signal mined learnings to canonical</strong> (v0.3.0 /
+      G-KR2). Extraction produces latent value; promotion realizes it. We stop
+      net-new mining until a batch is promoted &mdash; and because promotion to
+      canonical is human-gated by design, that's the one step that needs a person
+      in the loop.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><strong style="color:var(--text-dim)">agentic-harness</strong> &mdash; roadmap to GA &middot; updated 2026-06-26.</div>
+    <div class="note">
+      Public showcase, no sensitive data. Baseline counts are live as of the update
+      date. GA is earned by a reproduced live run, not declared; capacity-gated
+      milestones are scheduled when a reservation window is booked.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
