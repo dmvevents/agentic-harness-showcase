@@ -79,31 +79,56 @@ function aggregateVramGb(spec, instanceCount) {
   return spec.vram_gb * totalGpus(spec, instanceCount);
 }
 
+/* Training-strategy memory profiles. "DP shouldn't be the only one" — different
+ * mechanisms have very different per-GPU footprints. bytes_per_param is the
+ * per-trainable-param state; shardable says whether optimizer+grad state is
+ * sharded across the data-parallel group (FSDP/ZeRO-3 do; plain DDP/DP do not).
+ * All DIRECTIONAL public rules of thumb, NOT benchmarks. */
+const TRAIN_STRATEGY = {
+  full_ddp:   { label: "Full fine-tune · DDP/DP",      bytes: 20, shardable: false,
+                note: "weights+grad+Adam+activation floor, replicated per GPU (data-parallel)" },
+  full_fsdp:  { label: "Full fine-tune · FSDP / ZeRO-3", bytes: 20, shardable: true,
+                note: "same state, but sharded across the data-parallel group" },
+  full_zero2: { label: "Full fine-tune · ZeRO-2",       bytes: 20, shardable: true, shardFraction: 0.6,
+                note: "optimizer+grad sharded, params replicated (~60% shardable)" },
+  lora:       { label: "LoRA",                          bytes: 2.4, shardable: false,
+                note: "frozen weights (2B/param) + tiny trainable adapters+states" },
+  qlora:      { label: "QLoRA (4-bit base)",            bytes: 0.9, shardable: false,
+                note: "4-bit frozen base (~0.5B/param) + small adapter states" },
+};
+
 /**
- * Directional memory footprint for serving/training a dense model, in GB.
+ * Directional memory footprint, in GB. Now models the real strategy space —
+ * dense vs MoE, full vs LoRA/QLoRA, and sharded (FSDP/ZeRO) vs replicated —
+ * not just dense full-finetune.
  *
- * INFERENCE: weights + a KV-cache + activation working-set overhead.
- *   weights_gb = params_B * 1e9 * bytes_per_param / 1e9  (= params_B * bytes)
- *   We add a flat 1.25x working-set multiplier for KV cache + activations.
- *   This is a coarse public heuristic, NOT a benchmark.
- *
- * TRAINING (full fine-tune, mixed precision, Adam): the classic ~16 bytes/param
- *   rule of thumb (2 weights + 2 grad + 4+4 optimizer states + ~4 misc/activation
- *   headroom). Again: a directional rule of thumb, not a measured footprint.
+ * cfg: {paramsB, workload, precision, modelType?, activeParamsB?, strategy?, dpGroup?}
+ *   modelType: "dense" | "moe"  (MoE: VRAM holds ALL experts, but compute/KV
+ *              tracks only the ACTIVE params — e.g. Mixtral 8x7B = 47B total, ~13B active)
+ *   strategy: a key of TRAIN_STRATEGY (training/finetune only)
+ *   dpGroup:  data-parallel world size the optimizer state is sharded over (FSDP/ZeRO)
  */
-function modelFootprintGb(paramsB, workload, precision) {
+function modelFootprintGb(cfg) {
+  const { paramsB, workload, precision } = cfg;
   const bytes = BYTES_PER_PARAM[precision] || 2;
-  const weightsGb = paramsB * bytes;            // params_B * bytes/param == GB
+  // MoE: all experts must be RESIDENT in VRAM (memory tracks total params),
+  // even though only active params do compute.
+  const memParamsB = paramsB;
+
   if (workload === "train" || workload === "finetune") {
-    // Full mixed-precision Adam: weights+grad+optimizer states + an activation
-    // floor ~= 20 bytes/param (directional; 16 alone excludes activations and
-    // OOMs). NOTE: this is FULL fine-tune; LoRA/QLoRA are far lower and out of
-    // scope for this directional default.
-    return paramsB * TRAIN_BYTES_PER_PARAM;
+    const strat = TRAIN_STRATEGY[cfg.strategy] || TRAIN_STRATEGY.full_ddp;
+    let gb = memParamsB * strat.bytes;
+    if (strat.shardable) {
+      // FSDP/ZeRO-3 shard the full state across the DP group; ZeRO-2 shards a fraction.
+      const dp = Math.max(1, cfg.dpGroup || 1);
+      const frac = strat.shardFraction != null ? strat.shardFraction : 1.0;
+      gb = gb * (1 - frac) + (gb * frac) / dp;
+    }
+    return gb;
   }
-  // inference: weights + working set (KV cache + activations). 2.0x is a
-  // conservative general-purpose directional default; real KV scales with
-  // context length x batch and can exceed it.
+  // inference: weights (ALL experts resident) + working set (KV+activations).
+  // KV cache scales with the ACTIVE path, but weights dominate residency.
+  const weightsGb = memParamsB * bytes;
   return weightsGb * INFERENCE_WORKING_SET_MULT;
 }
 
@@ -200,12 +225,18 @@ function sizeCluster(cfg) {
   const spec = GPU_TABLE[cfg.gpuType];
   const gpus = totalGpus(spec, cfg.instanceCount);
   const aggVram = aggregateVramGb(spec, cfg.instanceCount);
-  const footprint = modelFootprintGb(cfg.paramsB, cfg.workload, cfg.precision);
+
+  // Step 1: replicated (un-sharded) footprint to derive the parallelism shape.
+  const footprint0 = modelFootprintGb({ ...cfg, dpGroup: 1 });
+  const par = parallelismSuggestion(spec, cfg.instanceCount, footprint0);
+  // Step 2: for sharded strategies (FSDP/ZeRO), recompute with the real DP group
+  // (the optimizer/grad state shards across the dp replicas).
+  const footprint = modelFootprintGb({ ...cfg, dpGroup: par.dp });
   const verdict = fitVerdict(footprint, aggVram);
-  const par = parallelismSuggestion(spec, cfg.instanceCount, footprint);
   const cost = directionalCost(spec, cfg.instanceCount);
   const aggTflops = spec.bf16_tflops_per_gpu * gpus;
-  return { spec, gpus, aggVram, footprint, verdict, par, cost, aggTflops };
+  return { spec, gpus, aggVram, footprint, footprint0, verdict, par, cost, aggTflops,
+           strategy: cfg.strategy || (cfg.workload === "inference" ? "inference" : "full_ddp") };
 }
 
 /* ---- DOM glue (impure boundary; the math above stays pure) -------------- */
@@ -217,6 +248,11 @@ function fmtNum(n, d = 0) {
   return n.toLocaleString("en-US", { maximumFractionDigits: d });
 }
 
+function _val(id, dflt) {
+  const el = document.getElementById(id);
+  return el ? el.value : dflt;
+}
+
 function readConfig() {
   return {
     paramsB: Math.max(0.1, parseFloat(document.getElementById("params").value) || 8),
@@ -224,6 +260,8 @@ function readConfig() {
     gpuType: document.getElementById("gpu").value,
     instanceCount: Math.max(1, parseInt(document.getElementById("instances").value, 10) || 1),
     precision: document.getElementById("precision").value,
+    modelType: _val("modelType", "dense"),
+    strategy: _val("strategy", "full_ddp"),
   };
 }
 
@@ -235,11 +273,18 @@ function render() {
   const strandTxt = r.par.strandedGpus > 0
     ? `${fmtNum(r.par.usedGpus)} used, <span class="warn">${fmtNum(r.par.strandedGpus)} idle</span>`
     : `${fmtNum(r.par.usedGpus)} used, 0 idle`;
+  const stratLabel = (typeof TRAIN_STRATEGY !== "undefined" && TRAIN_STRATEGY[cfg.strategy])
+    ? TRAIN_STRATEGY[cfg.strategy].label : "inference";
+  const strat = cfg.workload === "inference" ? "inference (serving)" : stratLabel;
+  const mt = cfg.modelType === "moe" ? "MoE (all experts resident)" : "dense";
+  const shardNote = (r.footprint0 && r.footprint < r.footprint0 * 0.95)
+    ? ` <span style="opacity:.7">(sharded from ${fmtNum(r.footprint0,0)} GB across DP=${r.par.dp})</span>` : "";
   const rows = [
     ["Instance type", r.spec.instance_type],
+    ["Strategy", `${strat} &middot; ${mt}`],
     ["Total GPUs", `${fmtNum(r.gpus)} (${cfg.instanceCount} &times; ${r.spec.gpus_per_instance})`],
     ["Aggregate VRAM", `${fmtNum(r.aggVram)} GB`],
-    ["Directional model footprint", `${fmtNum(r.footprint, 1)} GB`],
+    ["Directional model footprint", `${fmtNum(r.footprint, 1)} GB${shardNote}`],
     ["Aggregate BF16 compute", `~${fmtNum(r.aggTflops)} TFLOP/s (dense per-GPU &times; GPUs, directional)`],
     ["Suggested parallelism", `TP=${r.par.tp} &middot; PP=${r.par.pp} &middot; DP=${r.par.dp} &nbsp; (${strandTxt})`],
     ["Est. on-demand cost", `${fmtUsd(r.cost.usdPerHr)}/hr &middot; ${fmtUsd(r.cost.usdPerDay)}/day &middot; ${fmtUsd(r.cost.usdPerMonth)}/mo${costNote}`],

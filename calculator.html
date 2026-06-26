@@ -69,6 +69,23 @@
           </select>
         </div>
         <div class="field">
+          <label for="modelType">Model type</label>
+          <select id="modelType">
+            <option value="dense">Dense</option>
+            <option value="moe">MoE / mixture-of-experts (all experts resident)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="strategy">Training strategy <span class="hint">(training only)</span></label>
+          <select id="strategy">
+            <option value="full_ddp">Full fine-tune · DDP / data-parallel</option>
+            <option value="full_fsdp">Full fine-tune · FSDP / ZeRO-3 (sharded)</option>
+            <option value="full_zero2">Full fine-tune · ZeRO-2</option>
+            <option value="lora">LoRA</option>
+            <option value="qlora">QLoRA (4-bit base)</option>
+          </select>
+        </div>
+        <div class="field">
           <label for="instances">Instance count <span class="hint">(8 GPUs each)</span></label>
           <input type="number" id="instances" value="2" min="1" step="1">
         </div>
