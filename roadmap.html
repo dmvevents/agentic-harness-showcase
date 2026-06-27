@@ -44,10 +44,10 @@
     <p class="eyebrow">The baseline</p>
     <h2>Where we are today (v0.2.4)</h2>
     <div class="grid cols-4" style="margin-top:1.5rem">
-      <div class="card stat"><div class="num">982</div><div class="label">tests passing</div></div>
+      <div class="card stat"><div class="num">984</div><div class="label">tests passing</div></div>
       <div class="card stat"><div class="num">9<span class="unit">/12</span></div><div class="label">optimization layers implemented</div></div>
-      <div class="card stat"><div class="num">316</div><div class="label">canonical instincts (100% coverage)</div></div>
-      <div class="card stat"><div class="num">~1.9k</div><div class="label">categorized candidates in the review lane</div></div>
+      <div class="card stat"><div class="num">332</div><div class="label">canonical instincts (100% coverage)</div></div>
+      <div class="card stat"><div class="num">~2.2k</div><div class="label">categorized candidates in the review lane</div></div>
     </div>
     <div class="callout warn">
       <strong>What "not yet GA" honestly means.</strong> The live multi-node
@@ -106,7 +106,7 @@
       <thead><tr><th>KR</th><th>What it proves</th><th>Acceptance</th></tr></thead>
       <tbody>
         <tr><td><strong>G-KR1</strong> Live proof</td><td>a real ≥2-node HyperPod EKS bring-up + EFA validation + teardown, twice</td><td>complete audit dir; NCCL within noise floor; counters increment; reproduced</td></tr>
-        <tr><td><strong>G-KR2</strong> Realized knowledge</td><td>the mining loop is closed; canonical grows under the ratchet; contaminated entries scrubbed</td><td>a human-approved batch promoted; ratchet 100/100/100; canonical scan clean</td></tr>
+        <tr><td><strong>G-KR2</strong> Realized knowledge <span class="badge gated">in progress</span></td><td>the mining loop is closed; canonical grows under the ratchet; contaminated entries scrubbed</td><td>a human-approved batch promoted; ratchet 100/100/100; canonical scan clean</td></tr>
         <tr><td><strong>G-KR3</strong> Real benchmarks</td><td>repo seeded with ≥3 validated, customer-safe measured runs</td><td>artifacts reach <code>published</code>; a provenance-backed report renders</td></tr>
         <tr><td><strong>G-KR4</strong> Capacity assistant <span class="badge ship">shipped</span></td><td>rigidity scoring + CB/ODCR/FTP alternatives + request-shaping</td><td>✓ <code>analyze_flexibility</code> scores 0–100, routes by term, offers HW-ladder alternatives</td></tr>
         <tr><td><strong>G-KR5</strong> Hardened &amp; safe</td><td>zero open Sev-1; a fresh operator completes a run from the manual alone</td><td>all safety gates green; witnessed operator run</td></tr>
